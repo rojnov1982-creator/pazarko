@@ -22,6 +22,8 @@ const arg = (name, dflt) => {
 };
 const MAX_REQUESTS = Number(arg("max", 700));
 const RETRY_FAILED_DAYS = 30;
+// Версия правил поиска адреса: при улучшении правил ненайденные раньше магазины ищутся заново
+const CANDIDATES_VERSION = 2;
 const UA = "Pazarko/1.0 (grocery price comparison; https://github.com/rojnov1982-creator/pazarko)";
 
 const geoDir = process.env.GEO_DIR || path.join(here, "geo");
@@ -114,13 +116,13 @@ try {
   for (const s of index) {
     const cur = stores[s.sid];
     if (Array.isArray(cur)) continue;
-    if (cur?.failed && daysSince(cur.failed) < RETRY_FAILED_DAYS) continue;
+    if (cur?.failed && (cur.v ?? 1) >= CANDIDATES_VERSION && daysSince(cur.failed) < RETRY_FAILED_DAYS) continue;
     const center = await cityCenter(s.ekatte, s.city);
     let hit = null;
     for (const cand of addressCandidates(s.label, s.chain, s.city)) {
       const c = await nominatim(cand.q);
       if (c && (!center || distanceKm(center, c) <= radius(s.ekatte))) {
-        hit = [round5(c[0]), round5(c[1]), cand.quality === "street" ? 1 : 2]; // 1 — точный адрес, 2 — квартал
+        hit = [round5(c[0]), round5(c[1]), cand.quality === "street" ? 1 : 2]; // 1 — адрес, 2 — улица/квартал (примерно)
         break;
       }
     }
@@ -128,7 +130,7 @@ try {
       stores[s.sid] = hit;
       found++;
     } else {
-      stores[s.sid] = { failed: today };
+      stores[s.sid] = { failed: today, v: CANDIDATES_VERSION };
       failed++;
     }
   }

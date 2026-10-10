@@ -59,7 +59,19 @@ export function addressCandidates(label, chain, cityName) {
 
   const out = [];
   const st = s.match(STREET);
-  if (st) out.push({ q: `${tidyStreet(st[1])}, ${city}`, quality: "street" });
+  if (st) {
+    const full = tidyStreet(st[1]).replace(/\s+(между|до|срещу|бл\.?|вх\.?)(?![\p{L}]).*$/iu, "");
+    out.push({ q: `${full}, ${city}`, quality: "street" });
+    // В OpenStreetMap у многих домов в Болгарии нет номеров — пробуем без «ул.» и без номера
+    const bare = full.replace(/^(ул|бул|пл)\.\s*/i, "");
+    if (bare !== full) out.push({ q: `${bare}, ${city}`, quality: "street" });
+    const noNum = bare.replace(/\s*\d+[а-яa-z]?$/iu, "").trim();
+    if (noNum && noNum !== bare && noNum.length >= 3) {
+      const prefix = full.match(/^(ул|бул|пл)\./i)?.[0];
+      out.push({ q: `${prefix ? prefix + " " : ""}${noNum}, ${city}`, quality: "area" });
+      out.push({ q: `${noNum}, ${city}`, quality: "area" });
+    }
+  }
   const ar = s.match(AREA);
   if (ar) {
     const a = tidyArea(ar[1]);
