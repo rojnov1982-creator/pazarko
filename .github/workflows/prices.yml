@@ -16,7 +16,7 @@ on:
     paths: ["data-pipeline/**", "site-static/**", ".github/workflows/prices.yml"]
 
 permissions:
-  contents: read
+  contents: write   # чтобы сохранять найденные координаты магазинов (data-pipeline/geo)
   pages: write
   id-token: write
 
@@ -38,6 +38,23 @@ jobs:
         run: npm ci
         working-directory: data-pipeline
       - name: Скачать и обработать цены
+        run: node ingest.mjs --out ../site
+        working-directory: data-pipeline
+      - name: Координаты новых магазинов (OpenStreetMap)
+        run: node geocode.mjs --max 700
+        working-directory: data-pipeline
+        timeout-minutes: 20
+        continue-on-error: true   # без координат цены всё равно публикуются
+      - name: Сохранить координаты в репозитории
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data-pipeline/geo 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git commit -m "Координаты магазинов [skip ci]"
+            git pull --rebase origin main && git push
+          fi
+      - name: Пересобрать данные с координатами
         run: node ingest.mjs --out ../site
         working-directory: data-pipeline
       - name: Добавить страницы сайта

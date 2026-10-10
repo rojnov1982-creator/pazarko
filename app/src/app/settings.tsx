@@ -80,8 +80,8 @@ export default function SettingsScreen() {
             .filter((c) => !cfg.onlyGrocery || !c.kind || c.kind === "grocery")
             .map((c) => (
             <Toggle
-              key={c.eik}
-              title={c.name}
+              key={c.sid ?? c.eik}
+              title={c.label ? `${c.name} · ${c.label}` : c.name}
               sub={
                 t("chainSub", { n: c.stores, eik: c.eik }) +
                 (c.kind === "pharmacy" ? ` · ${t("kindPharmacy")}` : c.kind === "other" ? ` · ${t("kindOther")}` : "")

@@ -46,6 +46,11 @@ async function loadZip() {
   const dates = args.date ? [args.date] : [1, 2, 3, 4].map(daysAgoSofia);
   let lastErr;
   for (const date of dates) {
+    const cached = path.join(here, ".work", `${date}.zip`); // повторный запуск в том же workflow — без нового скачивания
+    if (fs.existsSync(cached)) {
+      console.log(`↺ ${date}.zip из кэша`);
+      return { bytes: new Uint8Array(fs.readFileSync(cached)), date };
+    }
     const url = `https://kolkostruva.bg/opendata_files/${date}.zip`;
     console.log(`↓ ${url}`);
     try {
@@ -53,6 +58,8 @@ async function loadZip() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const bytes = new Uint8Array(await res.arrayBuffer());
       if (bytes.length < 1000) throw new Error("слишком маленький файл");
+      fs.mkdirSync(path.join(here, ".work"), { recursive: true });
+      fs.writeFileSync(cached, bytes);
       return { bytes, date };
     } catch (e) {
       lastErr = e;
@@ -112,7 +119,12 @@ const parsedPct = Math.round(
   (100 * Object.values(norm.stat).reduce((a, s) => a + s.parsed, 0)) / Math.max(1, Object.values(norm.stat).reduce((a, s) => a + s.total, 0)),
 );
 console.log(`Фасовки распознаны: ${parsedPct}% строк в группах с разными размерами`);
-const { index, files: out, stats } = aggregate(norm.rows, { date, settlements });
+// Координаты магазинов и кварталов (накапливаются скриптом geocode.mjs, хранятся в репозитории)
+const readJson = (f, dflt) => (fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, "utf8")) : dflt);
+const geoStores = readJson(path.join(here, "geo/stores.json"), {});
+const geoAreas = readJson(path.join(here, "geo/areas.json"), {});
+const geo = Object.fromEntries(Object.entries(geoStores).filter(([, v]) => Array.isArray(v) && v.length >= 2));
+const { index, files: out, storesIndex, stats } = aggregate(norm.rows, { date, settlements, geo, areas: geoAreas });
 
 const outDir = path.resolve(args.out && args.out !== true ? args.out : path.join(here, "out"));
 fs.mkdirSync(path.join(outDir, "city"), { recursive: true });
@@ -124,7 +136,15 @@ for (const p of products.products) {
 }
 fs.writeFileSync(path.join(outDir, "products.json"), JSON.stringify(products));
 fs.writeFileSync(path.join(outDir, "index.json"), JSON.stringify(index));
-for (const [rel, obj] of Object.entries(out)) fs.writeFileSync(path.join(outDir, rel), JSON.stringify(obj));
+for (const [rel, obj] of Object.entries(out)) {
+  fs.mkdirSync(path.dirname(path.join(outDir, rel)), { recursive: true });
+  fs.writeFileSync(path.join(outDir, rel), JSON.stringify(obj));
+}
+// Список магазинов для geocode.mjs (не публикуется)
+fs.mkdirSync(path.join(here, ".work"), { recursive: true });
+fs.writeFileSync(path.join(here, ".work/stores-index.json"), JSON.stringify(storesIndex));
+const withGeo = storesIndex.filter((s) => geo[s.sid]).length;
+console.log(`Магазинов-супермаркетов: ${storesIndex.length}, с координатами: ${withGeo}`);
 
 console.log(`Отсеяно аномальных цен: ${stats.dropped}. Городов: ${stats.cities}. → ${outDir}`);
 console.log("Топ городов:", index.cities.slice(0, 5).map((c) => `${c.name} (${c.chains} сетей)`).join(", "));

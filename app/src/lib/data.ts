@@ -5,7 +5,7 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
-import type { CityFile, IndexFile, ProductsFile } from "./types";
+import type { CityFile, IndexFile, ProductsFile, StoreFile } from "./types";
 
 const demoIndex = require("../../assets/demo-data/index.json") as IndexFile;
 const demoProducts = require("../../assets/demo-data/products.json") as ProductsFile;
@@ -62,4 +62,10 @@ export async function loadCity(ekatte: string): Promise<CityFile> {
     return c;
   }
   return fetchCached<CityFile>(`city/${ekatte}.json`);
+}
+
+/** Цены одного магазина (для режимов «Мои магазини» и «Близо до мен») */
+export async function loadStoreFile(ekatte: string, sid: string): Promise<StoreFile> {
+  if (IS_DEMO) throw new Error("В демо-режиме нет данных по магазинам");
+  return fetchCached<StoreFile>(`city/${ekatte}/s/${sid}.json`);
 }

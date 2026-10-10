@@ -58,7 +58,24 @@ export interface ChainInfo {
   eik: string;
   stores: number;
   kind?: ChainKind;
+  /** в режиме «район»: конкретный магазин */
+  sid?: string;
+  label?: string;
 }
+
+/** [id, индекс сети, название/адрес, широта?, долгота?] */
+export type StoreTuple = [string, number, string, number?, number?];
+
+/** Файл цен одного магазина: те же кортежи, индекс сети = 0 */
+export interface StoreFile {
+  items: Record<string, PriceTuple[]>;
+  brands?: Record<string, Record<string, PriceTuple[]>>;
+}
+
+export type Area =
+  | { mode: "city" }
+  | { mode: "stores"; ids: string[] }
+  | { mode: "near"; lat: number; lon: number; radiusKm: number; label: string };
 
 export interface CityFile {
   v: number;
@@ -72,6 +89,10 @@ export interface CityFile {
   brands?: Record<string, Record<string, PriceTuple[]>>;
   /** супер оферти города */
   deals?: DealTuple[];
+  /** магазины-супермаркеты города */
+  stores?: StoreTuple[];
+  /** кварталы: [название, широта, долгота] */
+  areas?: [string, number, number][];
 }
 
 /** [группа, сеть, товар, цена на полке, цена по акции, скидка %, магазинов, марка] */

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { brandOf } from "./brands.mjs";
 
 // Свёртка сырых строк в компактные JSON-файлы для приложения:
@@ -12,6 +13,13 @@ const median = (arr) => {
 };
 
 const round2 = (n) => Math.round(n * 100) / 100;
+
+/** Стабильный id магазина: не меняется между днями, пока сеть и название магазина те же */
+export const storeId = (eik, label) =>
+  createHash("sha1")
+    .update(`${eik}|${label.toUpperCase().normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, " ").trim()}`)
+    .digest("hex")
+    .slice(0, 10);
 
 /** Обновляет «лучшую» запись (мин. обычная и мин. с акцией) для ключа */
 function updBest(map, key, r) {
@@ -55,7 +63,7 @@ function chainKind(groupSet) {
   return "other";
 }
 
-export function aggregate(rows, { date, settlements, minChains = 2 }) {
+export function aggregate(rows, { date, settlements, minChains = 2, geo = {}, areas = {} }) {
   // 0. Тип каждой сети — по всему её ассортименту в стране
   const groupsByEik = new Map();
   for (const r of rows) {
@@ -92,6 +100,14 @@ export function aggregate(rows, { date, settlements, minChains = 2 }) {
     updBest(ch.items, r.productId, r);
     const brand = brandOf(r.productId, r.product, r.chain);
     if (brand) updBest(ch.brands, `${r.productId}|${brand}`, r);
+    // цены конкретного магазина — только для супермаркетов (для режимов «Мои магазини» и «Близо до мен»)
+    if (kindByEik.get(r.eik) === "grocery") {
+      ch.storeData ??= new Map();
+      let sd = ch.storeData.get(r.store);
+      if (!sd) ch.storeData.set(r.store, (sd = { sid: storeId(r.eik, r.store), items: new Map(), brands: new Map() }));
+      updBest(sd.items, r.productId, r);
+      if (brand) updBest(sd.brands, `${r.productId}|${brand}`, r);
+    }
     // кандидаты в супер оферти — по конкретному товару (берём реальные цены на полке)
     if (r.promo != null && r.productId <= 85) {
       const shelf = r.packPrice ?? r.price;
@@ -112,6 +128,7 @@ export function aggregate(rows, { date, settlements, minChains = 2 }) {
   // 3. Сериализация.
   const index = { v: 1, date, generatedAt: new Date().toISOString(), source: "kolkostruva.bg (КЗП)", cities: [] };
   const files = {};
+  const storesIndex = [];
   for (const [ekatte, chainMap] of cities) {
     if (chainMap.size < minChains) continue;
     const chains = [...chainMap.entries()]
@@ -150,6 +167,26 @@ export function aggregate(rows, { date, settlements, minChains = 2 }) {
       deals.push([d.gid, d.ci, d.product, round2(d.shelf), round2(d.promo), Math.round(d.d * 100), d.stores.size, d.brand ?? ""]);
     }
     const [name, nameEn] = settlements[ekatte] ?? [`ЕКАТТЕ ${ekatte}`, ""];
+
+    // Магазины города: [id, индекс сети, название/адрес, широта?, долгота?] + файл цен каждого магазина
+    const stores = [];
+    chains.forEach((c, ci) => {
+      for (const [label, sd] of c.storeData ?? []) {
+        const g = geo[sd.sid];
+        stores.push(g ? [sd.sid, ci, label, g[0], g[1]] : [sd.sid, ci, label]);
+        storesIndex.push({ sid: sd.sid, ekatte, city: name, chain: c.name, label });
+        const sItems = {};
+        for (const [gid, it] of sd.items) sItems[gid] = [toTuple(0, it)];
+        const sBrands = {};
+        for (const [k, it] of sd.brands) {
+          const [gid, brand] = k.split("|");
+          (sBrands[gid] ??= {})[brand] = [toTuple(0, it)];
+        }
+        files[`city/${ekatte}/s/${sd.sid}.json`] = { items: sItems, brands: sBrands };
+      }
+    });
+    stores.sort((a, b) => a[1] - b[1] || a[2].localeCompare(b[2], "bg"));
+
     files[`city/${ekatte}.json`] = {
       v: 1,
       date,
@@ -160,6 +197,8 @@ export function aggregate(rows, { date, settlements, minChains = 2 }) {
       items,
       brands,
       deals,
+      stores,
+      areas: areas[ekatte] ?? [],
     };
     index.cities.push({
       ekatte,
@@ -173,5 +212,5 @@ export function aggregate(rows, { date, settlements, minChains = 2 }) {
     });
   }
   index.cities.sort((a, b) => b.stores - a.stores || a.name.localeCompare(b.name, "bg"));
-  return { index, files, stats: { rows: rows.length, dropped, cities: index.cities.length } };
+  return { index, files, storesIndex, stats: { rows: rows.length, dropped, cities: index.cities.length } };
 }

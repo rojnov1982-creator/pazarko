@@ -93,7 +93,7 @@ export default function ResultScreen() {
           </Text>
           {plan.missing.length > 0 && (
             <Text style={{ color: "#FFE1D8", fontSize: 13, marginTop: 4 }}>
-              {t("notFound", { list: plan.missing.map(name).join(", ") })}
+              {t(st.area.mode === "city" ? "notFound" : "notFoundArea", { list: plan.missing.map(name).join(", ") })}
             </Text>
           )}
         </View>
@@ -120,7 +120,9 @@ export default function ResultScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[s.body, { fontWeight: "800", fontSize: 17 }]}>{chainName(sp.chain)}</Text>
                   <Text style={s.muted}>
-                    {t("itemsAndStores", { items: sp.lines.length, stores: city.chains[sp.chain]?.stores ?? 0 })}
+                    {city.chains[sp.chain]?.label
+                      ? `${sp.lines.length} · ${city.chains[sp.chain]?.label}`
+                      : t("itemsAndStores", { items: sp.lines.length, stores: city.chains[sp.chain]?.stores ?? 0 })}
                   </Text>
                 </View>
               </View>
@@ -198,7 +200,7 @@ export default function ResultScreen() {
           {singles.map((x) => (
             <CompareRow
               key={x.chain}
-              label={chainName(x.chain)}
+              label={city.chains[x.chain]?.label ? `${chainName(x.chain)} · ${city.chains[x.chain]?.label}` : chainName(x.chain)}
               total={x.total}
               max={maxTotal}
               fmt={m}

@@ -94,3 +94,18 @@ test("марки, которой нет в городе, — товар не н�
   const r = optimizeBasket(city, [{ productId: 6, qty: 1, brand: "НесуществующаяМарка" }], { maxStores: 2, usePromo: true, extraStoreCost: 0 });
   assert.deepEqual(r.plan.missing, [6]);
 });
+
+test("район: план считается только по выбранным магазинам", async () => {
+  const { buildAreaCity, storesInArea } = await import("../src/lib/area");
+  const picked = (city.stores ?? []).filter((s, i, all) => all.findIndex((x) => x[1] === s[1]) === i).slice(0, 3);
+  assert.equal(picked.length, 3);
+  const files = Object.fromEntries(
+    picked.map((st) => [st[0], JSON.parse(fs.readFileSync(new URL(`../assets/demo-data/city/68134/s/${st[0]}.json`, import.meta.url), "utf8"))]),
+  );
+  const area = buildAreaCity(city, picked, files);
+  assert.equal(area.chains.length, 3);
+  assert.deepEqual(storesInArea(city, { mode: "stores", ids: picked.map((p) => p[0]) }).map((s) => s[0]).sort(), picked.map((p) => p[0]).sort());
+  const r = optimizeBasket(area, [{ productId: 6, qty: 2 }, { productId: 1, qty: 1 }], { maxStores: 2, usePromo: true, extraStoreCost: 0 });
+  for (const s of r.plan.stores) assert.ok(s.chain >= 0 && s.chain < 3);
+  assert.equal(r.plan.missing.length, 0);
+});

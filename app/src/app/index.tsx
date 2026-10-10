@@ -6,6 +6,7 @@ import { IS_DEMO } from "../lib/data";
 import { brandLabel, OWN_BRAND, productDetail, productName, splitName } from "../lib/i18n";
 import { brandsInCity, cheapest, excludedIndexes } from "../lib/prices";
 import { PRESETS, useStore } from "../lib/store";
+import { AreaPicker } from "../AreaPicker";
 import { Button, C, CAT_EMOJI, Card, DemoBanner, H, money, PromoBadge, qtyLabel, s, Stepper } from "../ui";
 
 /** «гр. София» → «София» / «Sofia» */
@@ -17,6 +18,7 @@ export default function BasketScreen() {
   const { t, lang } = st;
   const [picker, setPicker] = useState(false);
   const [brandFor, setBrandFor] = useState<number | null>(null);
+  const [areaOpen, setAreaOpen] = useState(false);
   const excluded = useMemo(
     () => excludedIndexes(st.city, st.settings.excludedChains, st.settings.onlyGrocery),
     [st.city, st.settings.excludedChains, st.settings.onlyGrocery],
@@ -48,8 +50,24 @@ export default function BasketScreen() {
           </Pressable>
         </View>
         <Text style={s.muted}>
-          {t("pricesOn", { date: st.index?.date ?? "—" })} · {st.city ? t("chainsInCity", { n: st.city.chains.filter((c) => !st.settings.onlyGrocery || !c.kind || c.kind === "grocery").length }) : t("loading")}
+          {t("pricesOn", { date: st.index?.date ?? "—" })} · {!st.city
+            ? t("loading")
+            : st.area.mode !== "city" && st.areaStoreCount > 0
+              ? t("storesFound", { n: st.city.chains.length })
+              : t("chainsInCity", { n: st.city.chains.filter((c) => !st.settings.onlyGrocery || !c.kind || c.kind === "grocery").length })}
         </Text>
+        <Pressable onPress={() => setAreaOpen(true)} style={[s.chip, s.row, { gap: 6, alignSelf: "flex-start" }]}>
+          <Text>🏪</Text>
+          <Text style={s.chipText}>
+            {st.area.mode === "city"
+              ? t("areaCity")
+              : st.area.mode === "stores"
+                ? `${t("areaMyStores")} (${st.areaStoreCount})`
+                : `${st.area.label} · ${t("km", { n: st.area.radiusKm })} (${st.areaStoreCount})`}
+          </Text>
+          <Text style={{ color: C.muted }}>▾</Text>
+        </Pressable>
+        {st.area.mode !== "city" && st.areaStoreCount === 0 && <Text style={{ color: C.promo }}>{t("noStoresInArea")}</Text>}
         {IS_DEMO && <DemoBanner />}
         {st.error && (
           <Text style={{ color: C.promo }}>
@@ -156,6 +174,8 @@ export default function BasketScreen() {
           </Pressable>
         </View>
       )}
+
+      <AreaPicker visible={areaOpen} onClose={() => setAreaOpen(false)} />
 
       <Modal visible={brandFor != null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setBrandFor(null)}>
         <View style={[s.screen, s.pad]}>
