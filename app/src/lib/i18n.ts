@@ -55,7 +55,7 @@ const bg = {
   anyNumber: "Без ограничение",
   optimalBasket: "Оптимална кошница",
   storesCount: "{n} маг.",
-  savingsText: "Спестявате {amount} ({pct}%) спрямо пазаруване само в {chain} — най-изгодния единичен магазин.",
+  savingsText: "Спестявате {amount} ({pct}%) спрямо пазаруване само в {chain} — най-изгодния единичен магазин (за същите продукти).",
   allInOne: "Най-изгодно е да купите всичко на едно място{chain}.",
   notFound: "Не намерихме в града: {list}",
   idealHint: "Без ограничение на магазините би излязло {total} — още {extra} спестяване, но в {n} магазина.",
@@ -157,6 +157,8 @@ const bg = {
   apply: "Приложи",
   maxStores: "До {n} магазина",
   notFoundArea: "Няма в избраните магазини: {list}",
+  forItems: "за {n} от {total} продукта",
+  coverageHint: "С толкова магазина липсват {n} продукта, затова сумата е по-малка. Изберете {k}+ магазина, за да намерите всичко.",
 };
 
 type Dict = typeof bg;
@@ -203,7 +205,7 @@ const en: Dict = {
   anyNumber: "No limit",
   optimalBasket: "Optimal basket",
   storesCount: "{n} stores",
-  savingsText: "You save {amount} ({pct}%) compared with buying everything at {chain}, the best single store.",
+  savingsText: "You save {amount} ({pct}%) compared with buying everything at {chain}, the best single store (for the same items).",
   allInOne: "It's cheapest to buy everything in one place{chain}.",
   notFound: "Not found in this city: {list}",
   idealHint: "With no store limit it would be {total} — another {extra} saved, but across {n} stores.",
@@ -304,6 +306,8 @@ const en: Dict = {
   apply: "Apply",
   maxStores: "Up to {n} stores",
   notFoundArea: "Not in your selected stores: {list}",
+  forItems: "for {n} of {total} items",
+  coverageHint: "With this many stores {n} items are missing, so the total is lower. Choose {k}+ stores to get everything.",
 };
 
 const DICTS: Record<Lang, Dict> = { bg, en };

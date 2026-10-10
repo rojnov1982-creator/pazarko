@@ -86,6 +86,11 @@ export default function ResultScreen() {
             {t("optimalBasket")} · {t("storesCount", { n: plan.stores.length })}
           </Text>
           <Text style={{ color: "#fff", fontSize: 40, fontWeight: "800", fontFamily: mono }}>{m(plan.total)}</Text>
+          {plan.missing.length > 0 && (
+            <Text style={{ color: "#CFE6D6", fontSize: 13, marginTop: -4 }}>
+              {t("forItems", { n: basket.length - plan.missing.length, total: basket.length })}
+            </Text>
+          )}
           <Text style={{ color: "#fff", fontSize: 15 }}>
             {bestSingle && savings > 0.004
               ? t("savingsText", { amount: m(savings), pct: lang === "bg" ? String(savingsPct).replace(".", ",") : savingsPct, chain: chainName(bestSingle.chain) })
@@ -102,6 +107,14 @@ export default function ResultScreen() {
           <Card style={{ backgroundColor: "#FFF8E8", borderColor: "#F0DFA8" }}>
             <Text style={s.body}>
               💡 {t("idealHint", { total: m(ideal.total), extra: m(extraSaving), n: ideal.stores.length })}
+            </Text>
+          </Card>
+        )}
+
+        {plan.missing.length > ideal.missing.length && (
+          <Card style={{ backgroundColor: "#FFF1EC", borderColor: "#F3C9BB" }}>
+            <Text style={s.body}>
+              ⚠️ {t("coverageHint", { n: plan.missing.length - ideal.missing.length, k: Math.max(maxStores + 1, 2) })}
             </Text>
           </Card>
         )}
@@ -242,8 +255,13 @@ function CompareRow({
   return (
     <View style={{ gap: 5 }}>
       <View style={[s.row, { justifyContent: "space-between" }]}>
-        <Text style={[s.body, { fontWeight: highlight ? "800" : "600", color: highlight ? C.green : C.ink }]}>{label}</Text>
-        <Text style={[s.num, { fontWeight: "700", color: highlight ? C.green : C.ink }]}>{fmt(total)}</Text>
+        <Text
+          style={[s.body, { flex: 1, marginRight: 10, fontWeight: highlight ? "800" : "600", color: highlight ? C.green : C.ink }]}
+          numberOfLines={2}
+        >
+          {label}
+        </Text>
+        <Text style={[s.num, { flexShrink: 0, fontWeight: "700", color: highlight ? C.green : C.ink }]}>{fmt(total)}</Text>
       </View>
       <View style={{ height: 8, borderRadius: 4, backgroundColor: "#EEE8DC", overflow: "hidden" }}>
         <View
