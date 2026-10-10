@@ -1,0 +1,24 @@
+name: Архив КЗП
+
+on:
+  schedule:
+    - cron: "40 5 * * *"   # каждый день, после публикации нового файла
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: kzp-archive
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Докачать недостающие дни в Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash data-pipeline/archive.sh
