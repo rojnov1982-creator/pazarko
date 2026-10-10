@@ -23,19 +23,24 @@ export const DATA_URL: string = (
 ).replace(/\/$/, "");
 export const IS_DEMO = !DATA_URL;
 
-const CACHE_TTL = 3 * 3600 * 1000;
+// Список городов проверяем часто (он маленький), а файлы городов и магазинов кэшируем
+// по версии данных: как только на сервере появились новые цены — скачиваются новые файлы.
+const INDEX_TTL = 20 * 60 * 1000;
+const FILE_TTL = 24 * 3600 * 1000;
+let dataVersion = "";
 
-async function fetchCached<T>(path: string): Promise<T> {
-  const key = `cache:${path}`;
+async function fetchCached<T>(path: string, ttl: number, version = ""): Promise<T> {
+  const key = `cache2:${path}@${version}`;
   try {
     const raw = await AsyncStorage.getItem(key);
     if (raw) {
       const { at, data } = JSON.parse(raw);
-      if (Date.now() - at < CACHE_TTL) return data as T;
+      if (Date.now() - at < ttl) return data as T;
     }
   } catch {}
   try {
-    const res = await fetch(`${DATA_URL}/${path}`);
+    // ?v= — чтобы телефон и CDN не отдали старую копию файла
+    const res = await fetch(`${DATA_URL}/${path}?v=${encodeURIComponent(version || String(Math.floor(Date.now() / ttl)))}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as T;
     AsyncStorage.setItem(key, JSON.stringify({ at: Date.now(), data })).catch(() => {});
@@ -48,11 +53,14 @@ async function fetchCached<T>(path: string): Promise<T> {
 }
 
 export async function loadIndex(): Promise<IndexFile> {
-  return IS_DEMO ? demoIndex : fetchCached<IndexFile>("index.json");
+  if (IS_DEMO) return demoIndex;
+  const idx = await fetchCached<IndexFile>("index.json", INDEX_TTL);
+  dataVersion = idx.generatedAt ?? idx.date;
+  return idx;
 }
 
 export async function loadProducts(): Promise<ProductsFile> {
-  return IS_DEMO ? demoProducts : fetchCached<ProductsFile>("products.json").catch(() => demoProducts);
+  return IS_DEMO ? demoProducts : fetchCached<ProductsFile>("products.json", FILE_TTL, dataVersion).catch(() => demoProducts);
 }
 
 export async function loadCity(ekatte: string): Promise<CityFile> {
@@ -61,11 +69,11 @@ export async function loadCity(ekatte: string): Promise<CityFile> {
     if (!c) throw new Error("No data for this city");
     return c;
   }
-  return fetchCached<CityFile>(`city/${ekatte}.json`);
+  return fetchCached<CityFile>(`city/${ekatte}.json`, FILE_TTL, dataVersion);
 }
 
 /** Цены одного магазина (для режимов «Мои магазини» и «Близо до мен») */
 export async function loadStoreFile(ekatte: string, sid: string): Promise<StoreFile> {
   if (IS_DEMO) throw new Error("В демо-режиме нет данных по магазинам");
-  return fetchCached<StoreFile>(`city/${ekatte}/s/${sid}.json`);
+  return fetchCached<StoreFile>(`city/${ekatte}/s/${sid}.json`, FILE_TTL, dataVersion);
 }

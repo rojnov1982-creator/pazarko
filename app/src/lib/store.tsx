@@ -123,11 +123,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const [saved, idx, prods] = await Promise.all([
-          AsyncStorage.getItem(KEY).catch(() => null),
-          loadIndex(),
-          loadProducts(),
-        ]);
+        const [saved, idx] = await Promise.all([AsyncStorage.getItem(KEY).catch(() => null), loadIndex()]);
+        const prods = await loadProducts(); // после index — чтобы взять файл текущей версии данных
         setIndex(idx);
         setProducts(prods);
         const s = saved ? JSON.parse(saved) : {};
