@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Пазарко",
+    "slug": "pazarko",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "bg.pazarko.app",
+      "infoPlist": {
+        "CFBundleDevelopmentRegion": "bg",
+        "CFBundleLocalizations": [
+          "bg",
+          "en"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F4EFE6",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "bg.pazarko.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "bundler": "metro"
+    },
+    "scheme": "pazarko",
+    "plugins": [
+      "expo-router",
+      "expo-localization"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {
+      "dataUrl": "https://rojnov1982-creator.github.io/pazarko",
+      "premiumEnabled": false
+    },
+    "locales": {
+      "bg": "./locales/bg.json",
+      "en": "./locales/en.json"
+    }
+  }
+}

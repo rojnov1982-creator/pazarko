@@ -1,0 +1,57 @@
+# Пазарко: автоматическое обновление цен.
+# Каждый день скачивает архив КЗП с kolkostruva.bg, готовит JSON для приложения
+# и публикует его вместе с сайтом (политика конфиденциальности) на GitHub Pages.
+#
+# Однократная настройка: Settings → Pages → Source: «GitHub Actions».
+# Адрес данных: https://<пользователь>.github.io/<репозиторий>  → app/app.json → expo.extra.dataUrl
+name: prices
+
+on:
+  schedule:
+    - cron: "15 4 * * *"   # 07:15 по Софии
+    - cron: "15 13 * * *"  # 16:15 по Софии — повтор, если утром архив ещё не вышел
+  workflow_dispatch:       # кнопка «Run workflow» для ручного запуска
+  push:
+    branches: [main]
+    paths: ["data-pipeline/**", "site-static/**", ".github/workflows/prices.yml"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: data-pipeline/package-lock.json
+      - name: Установить зависимости
+        run: npm ci
+        working-directory: data-pipeline
+      - name: Скачать и обработать цены
+        run: node ingest.mjs --out ../site
+        working-directory: data-pipeline
+      - name: Добавить страницы сайта
+        run: cp -r site-static/. site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

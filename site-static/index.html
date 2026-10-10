@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Пазарко — най-евтината кошница</title>
+<meta name="description" content="Пазарко сравнява цените в супермаркетите и показва в кои магазини какво да купите, за да платите най-малко.">
+<link rel="icon" href="icon.png">
+<style>
+  :root { --bg:#F4EFE6; --card:#FFFDF8; --ink:#1E2A22; --muted:#6B7468; --line:#E4DDCF; --green:#1F6F4A; --promo:#D9482B; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 16px 64px; }
+  .hero { display:flex; gap:20px; align-items:center; }
+  .hero img { width:96px; height:96px; border-radius:22px; box-shadow: 0 8px 24px rgba(31,111,74,.25); }
+  h1 { font-size: 40px; margin: 0; letter-spacing: -0.5px; }
+  .tag { color: var(--muted); margin: 4px 0 0; }
+  .card { background: var(--card); border:1px solid var(--line); border-radius:18px; padding: 20px 24px; margin-top: 24px; }
+  h2 { font-size: 18px; margin: 0 0 8px; color: var(--green); }
+  ul { margin: 0; padding-left: 20px; }
+  .data { font-family: ui-monospace, Menlo, monospace; font-size: 14px; color: var(--muted); }
+  footer { margin-top: 32px; color: var(--muted); font-size: 14px; }
+  a { color: var(--green); }
+</style>
+</head>
+<body>
+<main>
+  <div class="hero">
+    <img src="icon.png" alt="Пазарко">
+    <div>
+      <h1>Пазарко</h1>
+      <p class="tag">Най-евтината кошница · The cheapest grocery basket</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Какво прави</h2>
+    <ul>
+      <li>Събирате кошница от продукти.</li>
+      <li>Пазарко сравнява цените и промоциите във веригите във вашия град.</li>
+      <li>Показва в кои 1, 2 или 3 магазина какво да купите и колко спестявате спрямо пазаруване само в един магазин.</li>
+    </ul>
+  </div>
+
+  <div class="card" lang="en">
+    <h2>What it does</h2>
+    <ul>
+      <li>Build a basket of groceries.</li>
+      <li>Pazarko compares prices and promotions across the chains in your city.</li>
+      <li>It shows what to buy in which 1, 2 or 3 stores — and how much you save versus shopping in one store.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Данни / Data</h2>
+    <p>Цени: отворени данни на КЗП (kolkostruva.bg), обновяват се всеки ден.<br>
+       Prices: open data from Bulgaria’s Consumer Protection Commission, updated daily.</p>
+    <p class="data" id="status">…</p>
+  </div>
+
+  <footer>
+    <a href="privacy.html">Политика за поверителност / Privacy Policy</a> ·
+    <a href="mailto:[EMAIL]">Контакт / Contact</a>
+  </footer>
+</main>
+<script>
+  fetch("index.json").then(r => r.json()).then(d => {
+    document.getElementById("status").textContent =
+      `Последни цени / Latest prices: ${d.date} · ${d.cities.length} градове / cities`;
+  }).catch(() => { document.getElementById("status").textContent = ""; });
+</script>
+</body>
+</html>
