@@ -124,22 +124,40 @@ test("корзина только из своих строк: план гото�
   assert.equal(r.plan.stores.length, 0);
 });
 
-test("история брошюр: поиск по словам, последняя акция, название для «Любими» без граммовки", async () => {
-  const { favNameFrom, historyMatches, lastSeen } = await import("../src/lib/favorites");
+test("история брошюр: прошедшая / текущая / будущая акция, условия, фильтр до лимита, короткое название", async () => {
+  const { favNameFrom, historyMatches, historyProducts, favHistory, conditionKey } = await import("../src/lib/favorites");
+  const item = (o: Record<string, unknown>) => ({ ch: "Fantastico", n: "Луканка Чардака ОРЕХИТЕ 300 г", b: "ОРЕХИТЕ", g: 28, ...o });
   const history = {
-    v: 1,
-    generatedAt: "",
-    chains: [{ name: "Fantastico", match: ["ФАНТАСТИКО"] }],
+    months: ["2026-10", "2026-11"],
     items: [
-      { c: 0, n: "Луканка Добруджанска; Чардака ОРЕХИТЕ ГАСТРО 300 г", b: "ОРЕХИТЕ ГАСТРО", g: 28, f: "2026-11-03", t: "2026-11-09", p: 3.49, w: 2 },
-      { c: 0, n: "Луканка Смядовска ОРЕХИТЕ 300 г", b: "ОРЕХИТЕ", g: 28, f: "2026-10-20", t: "2026-10-26", p: 2.99, w: 1 },
+      item({ f: "2026-11-10", t: "2026-11-16", p: 3.29 }), // будущая
+      item({ f: "2026-10-20", t: "2026-10-26", p: 3.49, r: 5.49 }), // прошедшая
+      item({ ch: "Kaufland", n: "Кисело мляко Верея 2+1", b: "ВЕРЕЯ", g: 7, f: "2026-10-13", t: "2026-10-19", p: 3, r: 6, m: "multibuy", w: "Купи 2 броя" }),
+      item({ ch: "Lidl", n: "Кафе Lavazza", b: "LAVAZZA", g: 70, f: "2026-10-06", t: "2026-10-12", p: 6, m: "tiered" }),
     ],
   };
+  const prods = historyProducts(history as never, "2026-11-06");
   const w = favWords("Луканка Орехите Чардака");
-  assert.deepEqual(historyMatches(history, w).map((h) => h.p), [3.49]);
-  assert.equal(historyMatches(history, favWords("орехите луканка")).length, 2);
-  assert.equal(lastSeen({ id: "x", name: "", words: w, inList: true }, history)?.f, "2026-11-03");
-  assert.equal(lastSeen({ id: "y", name: "", words: favWords("Кашкавал Елена"), inList: true }, history), undefined);
+  // будущая акция не затирает прошедшую
+  const fh = favHistory({ id: "x", name: "", words: w, inList: true }, prods);
+  assert.equal(fh.last?.h.f, "2026-10-20");
+  assert.equal(fh.next?.h.f, "2026-11-10");
+  const lukanka = prods.find((p) => p.n.startsWith("Луканка"))!;
+  assert.equal(lukanka.weeks, 2);
+  assert.equal(lukanka.now, undefined);
+  // условия сохраняются: текст условия и механика
+  const yog = prods.find((p) => p.ch === "Kaufland")!;
+  assert.equal(yog.last?.w, "Купи 2 броя");
+  assert.equal(yog.last?.m, "multibuy");
+  assert.equal(conditionKey({ m: "tiered" }), "mechTiered"); // скидка от суммы покупки — без текста условия
+  assert.equal(conditionKey({ m: "multibuy", w: "Купи 2 броя" }), undefined); // есть текст — показываем его
+  // сначала фильтр (сеть), потом лимит: Lidl-товар находится, хотя первым по дате идёт другой
+  const lidl = historyMatches(prods, favWords("кафе"), (p) => p.ch === "Lidl", 1);
+  assert.equal(lidl[0]?.ch, "Lidl");
+  const many = Array.from({ length: 250 }, (_, i) => item({ ch: "Billa", n: `Кафе марка${i}`, f: "2026-11-03", t: "2026-11-09" }));
+  const prods2 = historyProducts({ months: [], items: [...many, ...history.items] } as never, "2026-11-06");
+  const past = historyMatches(prods2, favWords("кафе"), (p) => !!p.last && !p.now && p.ch === "Lidl", 30);
+  assert.equal(past.length, 1); // 250 текущих «кафе» в Billa не вытесняют прошедшую акцию Lidl
   assert.equal(
     favNameFrom("Луканка Добруджанска; Чардака ОРЕХИТЕ ГАСТРО насипна от щандова витрина", "ОРЕХИТЕ ГАСТРО"),
     "Луканка Добруджанска Чардака Орехите",

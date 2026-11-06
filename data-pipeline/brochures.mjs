@@ -3,11 +3,12 @@
 // Вход: data-pipeline/brochures/*.csv — разборы брошюр в формате v1 (30 колонок, как в Media Radar / навык brochure-offers).
 // Только открытые источники (сайты сетей, агрегаторы брошюр): репозиторий публичный.
 //
-// Выход: <out>/brochures.json — действующие предложения и те, что начнутся в ближайшие UPCOMING_DAYS дней.
+// Выход: <out>/brochures.json — действующие предложения и те, что начнутся в ближайшие UPCOMING_DAYS дней;
+//        <out>/history/<ГГГГ-ММ>.json — все предложения всех разобранных недель по месяцам, history/index.json — месяцы.
 // Для предложений с понятной фасовкой считается цена за эталонную фасовку группы КЗП (rp) —
 // её приложение сравнивает с ценой в плане корзины.
 //
-//   node brochures.mjs --out ../site [--today 2026-11-06]
+//   node brochures.mjs --out ../site [--today 2026-11-06] [--in <папка с CSV>]
 
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -55,7 +56,7 @@ const num = (s) => {
 };
 const r2 = (v) => (v == null ? undefined : Math.round(v * 100) / 100);
 
-const dir = path.join(here, "brochures");
+const dir = path.resolve(args.in && args.in !== true ? args.in : path.join(here, "brochures"));
 const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith(".csv")).sort() : [];
 
 const chainIdx = new Map();
@@ -65,9 +66,10 @@ const offers = [];
 const seen = new Set();
 const stats = { files: files.length, rows: 0, expired: 0, future: 0, noChain: 0, dup: 0, comparable: 0 };
 
-// История всех разобранных брошюр: каждый продукт (сеть + название + марка) один раз — с последней акцией
-// и числом недель, когда он был в брошюрах. Для поиска «по всички седмици» и подсказок в «Любими».
-const history = new Map();
+// История брошюр по месяцам: каждое предложение каждой недели (не только последнее — иначе будущая акция затирала бы
+// прошедшую), с ценой, обычной ценой и УСЛОВИЯМИ (механика, текст условия, «с карта»). Месяц — по дате начала акции.
+// Приложение само решает, что «последно в акция» (уже закончилась), что «сега», что «скоро».
+const historyByMonth = new Map(); // "2026-11" → Map(ключ → запись)
 const cleanName = (s) =>
   (s ?? "")
     .split("•")[0]
@@ -78,20 +80,19 @@ function remember(r, chain, from, to) {
   const name = cleanName(r.product);
   if (!name) return;
   const brand = (r.brand ?? "").trim() || undefined;
-  const key = [chain, name.toLowerCase(), (brand ?? "").toLowerCase()].join("|");
   const price = num(r.effective_eur) ?? num(r.price_eur);
   const regular = num(r.regular_eur);
-  const prev = history.get(key);
-  const weeks = new Set(prev?.weeks ?? []);
-  weeks.add(from);
-  if (prev && prev.f > from) {
-    prev.weeks = weeks;
-    return;
-  }
+  const mech = (r.mechanic ?? "").trim();
+  const conditional = /multibuy|tiered|code_threshold|promo_pack|pct_no_price/.test(mech);
+  const key = [chain, name.toLowerCase(), (brand ?? "").toLowerCase(), from, to, price].join("|");
+  const month = from.slice(0, 7);
+  const m = historyByMonth.get(month) ?? new Map();
+  historyByMonth.set(month, m);
+  if (m.has(key)) return;
   const qty = num(r.total_qty);
   const unit = (r.unit ?? "").trim();
   const ppu = !(r.check ?? "").trim() && price && qty && unit ? r2(price / qty) : undefined;
-  history.set(key, {
+  m.set(key, {
     chain,
     n: name,
     b: brand,
@@ -102,8 +103,9 @@ function remember(r, chain, from, to) {
     p: r2(price),
     r: regular && price && regular > price ? r2(regular) : undefined,
     u: ppu ? `${ppu}/${unit}` : undefined,
-    k: (r.mechanic ?? "").includes("card_app") ? 1 : undefined,
-    weeks,
+    k: mech.includes("card_app") ? 1 : undefined,
+    m: conditional ? mech : undefined,
+    w: (r.condition ?? "").trim() || undefined,
   });
 }
 
@@ -208,17 +210,25 @@ const result = {
 fs.mkdirSync(outDir, { recursive: true });
 fs.writeFileSync(path.join(outDir, "brochures.json"), JSON.stringify(result));
 
-// история: сети — в том же порядке, что и в brochures.json (новые сети из истории добавляются в конец)
-const histItems = [...history.values()]
-  .sort((x, y) => (y.f < x.f ? -1 : y.f > x.f ? 1 : 0))
-  .map(({ chain, weeks, ...h }) => ({ ...h, c: idx(chainIdx, chain), w: weeks.size }));
-fs.writeFileSync(
-  path.join(outDir, "brochure-history.json"),
-  JSON.stringify({ v: 1, generatedAt: result.generatedAt, chains: [...chainIdx.keys()].map((name) => ({ name, match: CHAINS[name] })), items: histItems }),
-);
+// история: history/<ГГГГ-ММ>.json + history/index.json (список месяцев); сети — по названию в каждом файле
+const histDir = path.join(outDir, "history");
+fs.mkdirSync(histDir, { recursive: true });
+const months = [...historyByMonth.keys()].sort();
+let histTotal = 0;
+for (const month of months) {
+  const chains = [];
+  const ci = (name) => (chains.includes(name) ? chains.indexOf(name) : chains.push(name) - 1);
+  const items = [...historyByMonth.get(month).values()]
+    .sort((x, y) => (y.f < x.f ? -1 : y.f > x.f ? 1 : 0))
+    .map(({ chain, ...h }) => ({ ...h, c: ci(chain) }));
+  histTotal += items.length;
+  fs.writeFileSync(path.join(histDir, `${month}.json`), JSON.stringify({ v: 2, month, chains, items }));
+}
+fs.writeFileSync(path.join(histDir, "index.json"), JSON.stringify({ v: 2, generatedAt: result.generatedAt, months }));
+
 console.log(
   `Брошюры: файлов ${stats.files}, строк ${stats.rows} → предложений ${offers.length} ` +
     `(сравнимых с КЗП ${stats.comparable}; истекли ${stats.expired}, позже ${UPCOMING_DAYS} дн. ${stats.future}, ` +
     `дубли ${stats.dup}, неизвестная сеть ${stats.noChain}) → ${outDir}/brochures.json; ` +
-    `история: ${history.size} продуктов → brochure-history.json`,
+    `история: ${histTotal} предложений за ${months.length} мес. → history/`,
 );

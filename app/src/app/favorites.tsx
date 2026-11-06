@@ -12,15 +12,14 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BackLink, Icon, ProductTile } from "../components";
+import { BackLink, historyLine, Icon, ProductTile } from "../components";
 import {
   offerStatus,
   shortDate,
   todayIso,
   visibleChains,
 } from "../lib/brochures";
-import { favNameFrom, favoriteOffers, favWords, historyMatches, kzpFavPrice, lastSeen } from "../lib/favorites";
-import type { BrochureHistoryItem } from "../lib/types";
+import { favHistory, favNameFrom, favoriteOffers, favWords, historyMatches, kzpFavPrice, type HistoryProduct } from "../lib/favorites";
 import { isPerKgOffer } from "../lib/pins";
 import { useStore } from "../lib/store";
 import { Button, C, Card, money, productEmoji, useK, useS } from "../ui";
@@ -37,20 +36,17 @@ export default function FavoritesScreen() {
     [bro, st.baseCity, st.excludedEiks],
   );
   const back = () => (router.canGoBack() ? router.back() : router.replace("/"));
+  // подсказки: продукты истории со всеми словами (сейчас в акции, были, будут)
   const suggestions = useMemo(
-    () => (text.trim().length >= 3 ? historyMatches(st.history, favWords(text), 6) : []),
-    [text, st.history],
+    () => (text.trim().length >= 3 ? historyMatches(st.historyProducts, favWords(text), () => true, 6) : []),
+    [text, st.historyProducts],
   );
-  // «Fantastico · 3,49 € · 03.11–09.11 · 2 седм.»
-  const pastLine = (h: BrochureHistoryItem) =>
-    [
-      st.history?.chains[h.c]?.name ?? "",
-      h.p != null ? money(h.p, lang) : "",
-      `${shortDate(h.f)}–${shortDate(h.t)}`,
-      h.w > 1 ? t("weeksN", { n: h.w }) : "",
-    ]
-      .filter(Boolean)
-      .join(" · ");
+  const suggestLine = (p: HistoryProduct) =>
+    p.now
+      ? `${t("histNow")}: ${historyLine(p.now, t, lang)}`
+      : p.last
+        ? historyLine(p.last, t, lang, { weeks: p.weeks })
+        : t("histNext", { what: historyLine(p.next!, t, lang) });
   const add = () => {
     if (st.addFavorite(text)) setText("");
   };
@@ -94,14 +90,14 @@ export default function FavoritesScreen() {
               <Text style={[s.muted, { fontWeight: "700" }]}>{t("favSuggest")}</Text>
               {suggestions.map((h) => (
                 <Pressable
-                  key={`${h.c}|${h.n}|${h.b ?? ""}`}
+                  key={h.key}
                   onPress={() => setText(favNameFrom(h.n, h.b))}
                   accessibilityRole="button"
                   style={{ backgroundColor: "#F6F2EA", borderRadius: 12, padding: 10, gap: 2 }}
                 >
                   <Text style={[s.body, { fontWeight: "700", fontSize: 15.5 * k }]}>{h.n}</Text>
                   <Text style={[s.muted, { fontSize: 13.5 * k }]}>
-                    {pastLine(h)}
+                    {suggestLine(h)}
                   </Text>
                 </Pressable>
               ))}
@@ -130,7 +126,7 @@ export default function FavoritesScreen() {
           const best = offers[0];
           const p = f.productId ? st.productById.get(f.productId) : undefined;
           const kzp = kzpFavPrice(f, st.baseCity);
-          const seen = best ? undefined : lastSeen(f, st.history);
+          const hist = best ? undefined : favHistory(f, st.historyProducts);
           return (
             <Card key={f.id} style={{ gap: 10 }}>
               <View style={[s.row, { gap: 12, alignItems: "flex-start" }]}>
@@ -162,7 +158,10 @@ export default function FavoritesScreen() {
                     <Text style={[s.muted, { fontWeight: "700" }]}>
                       {t("favNoSale")}
                       {"\n"}
-                      {seen ? t("favLastSeen", { what: pastLine(seen) }) : t("favNeverSeen")}
+                      {hist?.last
+                        ? t("favLastSeen", { what: historyLine(hist.last.h, t, lang) })
+                        : t("favNeverSeen")}
+                      {hist?.next ? `\n${t("histNext", { what: historyLine(hist.next.h, t, lang) })}` : ""}
                     </Text>
                   )}
                   {offers.slice(1, 3).map((o) => (

@@ -155,19 +155,86 @@ export function favPart(
   return null;
 }
 
-/** Продукты из истории брошюр, где есть все слова; самые свежие первыми */
-export function historyMatches(history: BrochureHistory | null, words: string[], limit = 20): BrochureHistoryItem[] {
-  if (!history || !words.length) return [];
-  const out: BrochureHistoryItem[] = [];
+/**
+ * Продукт в истории брошюр (сеть + название + марка) — по всем загруженным неделям:
+ * last — последняя УЖЕ ЗАКОНЧИВШАЯСЯ акция, now — действующая сегодня, next — ближайшая будущая, weeks — сколько недель.
+ * Будущая акция не затирает прошедшую: в истории хранится каждая неделя.
+ */
+export interface HistoryProduct {
+  key: string;
+  ch: string;
+  n: string;
+  b?: string;
+  g?: number;
+  a?: number;
+  last?: BrochureHistoryItem;
+  now?: BrochureHistoryItem;
+  next?: BrochureHistoryItem;
+  weeks: number;
+}
+
+export function historyProducts(history: BrochureHistory | null, today: string): HistoryProduct[] {
+  if (!history) return [];
+  const map = new Map<string, HistoryProduct & { fs: Set<string> }>();
   for (const h of history.items) {
-    if (matchesWords(words, `${h.n} ${h.b ?? ""}`)) out.push(h);
-    if (out.length >= limit) break; // items уже отсортированы по дате, новые первыми
+    const key = `${h.ch}|${fold(h.n)}|${fold(h.b ?? "")}`;
+    let p = map.get(key);
+    if (!p) {
+      p = { key, ch: h.ch, n: h.n, b: h.b, g: h.g, a: h.a, weeks: 0, fs: new Set() };
+      map.set(key, p);
+    }
+    p.fs.add(h.f);
+    if (h.t < today) {
+      if (!p.last || h.t > p.last.t) p.last = h;
+    } else if (h.f > today) {
+      if (!p.next || h.f < p.next.f) p.next = h;
+    } else if (!p.now || (h.p ?? 0) < (p.now.p ?? 0)) p.now = h;
+  }
+  const latest = (p: HistoryProduct) => (p.now ?? p.last ?? p.next)!.f;
+  return [...map.values()]
+    .map(({ fs, ...p }) => ({ ...p, weeks: fs.size }))
+    .sort((a, b) => (latest(b) < latest(a) ? -1 : latest(b) > latest(a) ? 1 : 0));
+}
+
+/** Продукты истории со всеми словами; сначала фильтр (сеть, раздел, «только прошедшие»), потом лимит */
+export function historyMatches(
+  products: HistoryProduct[],
+  words: string[],
+  filter: (p: HistoryProduct) => boolean = () => true,
+  limit = 20,
+): HistoryProduct[] {
+  if (!words.length) return [];
+  const out: HistoryProduct[] = [];
+  for (const p of products) {
+    if (!matchesWords(words, `${p.n} ${p.b ?? ""}`) || !filter(p)) continue;
+    out.push(p);
+    if (out.length >= limit) break;
   }
   return out;
 }
 
-/** Последняя акция любимого продукта из истории брошюр */
-export const lastSeen = (f: Favorite, history: BrochureHistory | null) => historyMatches(history, f.words, 1)[0];
+/** Последняя закончившаяся акция любимого продукта и ближайшая будущая (по всем подходящим продуктам) */
+export function favHistory(f: Favorite, products: HistoryProduct[]) {
+  let last: { p: HistoryProduct; h: BrochureHistoryItem } | undefined;
+  let next: { p: HistoryProduct; h: BrochureHistoryItem } | undefined;
+  for (const p of historyMatches(products, f.words, () => true, 1000)) {
+    if (p.last && (!last || p.last.t > last.h.t)) last = { p, h: p.last };
+    if (p.next && (!next || p.next.f < next.h.f)) next = { p, h: p.next };
+  }
+  return { last, next };
+}
+
+/** Условие акции для показа: текст из брошюры, иначе — по механике */
+export function conditionKey(h: { m?: string; w?: string }): string | undefined {
+  if (h.w) return undefined;
+  if (!h.m) return undefined;
+  if (h.m.includes("multibuy")) return "mechMultibuy";
+  if (h.m.includes("tiered")) return "mechTiered";
+  if (h.m.includes("code_threshold")) return "mechCode";
+  if (h.m.includes("promo_pack")) return "mechPromoPack";
+  if (h.m.includes("pct_no_price")) return "mechPctNoPrice";
+  return undefined;
+}
 
 /**
  * Название для «Любими» из продукта брошюры: вид продукта (первое слово), собственные имена (с заглавной)

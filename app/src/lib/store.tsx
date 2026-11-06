@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { favWords, inferFavorite, type Favorite } from "./favorites";
+import { favWords, historyProducts as historyProductsOf, inferFavorite, type Favorite, type HistoryProduct } from "./favorites";
+import { todayIso } from "./brochures";
 import React, {
   createContext,
   useCallback,
@@ -208,8 +209,10 @@ interface Ctx {
   products: ProductsFile | null;
   /** брошюры сетей (null — нет данных или ещё не загрузились) */
   brochures: BrochureFile | null;
-  /** история брошюр (все недели) — поиск прошедших акций, подсказки в «Любими» */
+  /** история брошюр (последние месяцы) — поиск прошедших акций, подсказки в «Любими» */
   history: BrochureHistory | null;
+  /** продукты истории: последняя закончившаяся / текущая / будущая акция */
+  historyProducts: HistoryProduct[];
   productById: Map<number, Product>;
   /**
    * Данные для расчёта: весь город или собранные из магазинов района.
@@ -279,6 +282,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [products, setProducts] = useState<ProductsFile | null>(null);
   const [brochures, setBrochures] = useState<BrochureFile | null>(null);
   const [history, setHistory] = useState<BrochureHistory | null>(null);
+  const historyProducts = useMemo(() => historyProductsOf(history, todayIso()), [history]);
   const [city, setCity] = useState<CityFile | null>(null);
   const [areaCity, setAreaCity] = useState<CityFile | null>(null);
   const [areaStoreCount, setAreaStoreCount] = useState(0);
@@ -481,6 +485,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     products,
     brochures,
     history,
+    historyProducts,
     productById,
     city:
       area.mode === "city"

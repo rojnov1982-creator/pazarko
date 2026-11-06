@@ -21,12 +21,12 @@ import {
 import { productName, sizeLabel, splitName } from "./lib/i18n";
 import { isPerKgOffer, itemKey, pinFromBrochure } from "./lib/pins";
 import { weeklyPromoBasket } from "./lib/promoBasket";
-import { favNameFrom, favoriteOffers, favWords, historyMatches, matchesWords, offerMatches } from "./lib/favorites";
+import { conditionKey, favNameFrom, favoriteOffers, favWords, historyMatches, matchesWords, offerMatches, type HistoryProduct } from "./lib/favorites";
 import { router } from "expo-router";
 import { useStore } from "./lib/store";
-import type { BrochureHistoryItem, BrochureOffer } from "./lib/types";
+import type { BrochureOffer } from "./lib/types";
 import type { TKey } from "./lib/i18n";
-import { chainColor, Icon, OfferCard } from "./components";
+import { chainColor, historyLine, Icon, OfferCard } from "./components";
 import {
   C,
   CAT_EMOJI,
@@ -164,20 +164,18 @@ export function BrochureList({ header }: { header: React.ReactElement }) {
     ];
   }, [active, chain, inCat, q, bro, today]);
 
-  // поиск по прошлым неделям: продукты, чья последняя акция уже закончилась (история брошюр)
+  // поиск по прошлым неделям: продукты, у которых есть закончившаяся акция и нет действующей.
+  // Сначала все фильтры (сеть, раздел, дата), потом лимит — иначе нужная запись отсекалась бы раньше фильтра
   const past = useMemo(() => {
-    const words = favWords(q);
-    if (q.trim().length < 3 || !st.history) return [];
+    if (q.trim().length < 3) return [];
     const chainName = chain != null ? bro?.chains[chain]?.name : undefined;
-    return historyMatches(st.history, words, 200)
-      .filter(
-        (h) =>
-          h.t < today &&
-          (!chainName || st.history!.chains[h.c]?.name === chainName) &&
-          inCat({ a: h.a } as BrochureOffer),
-      )
-      .slice(0, 30);
-  }, [q, st.history, chain, bro, today, inCat]);
+    return historyMatches(
+      st.historyProducts,
+      favWords(q),
+      (p) => !!p.last && !p.now && (!chainName || p.ch === chainName) && inCat({ a: p.a } as BrochureOffer),
+      30,
+    );
+  }, [q, st.historyProducts, chain, bro, inCat]);
 
   const filters = (
     <View style={{ gap: 8, marginBottom: 4 }}>
@@ -283,8 +281,8 @@ export function BrochureList({ header }: { header: React.ReactElement }) {
   );
 }
 
-/** Прошедшие акции из истории брошюр: где и почём было; «♡ Следи» — в любимые */
-function PastOffers({ items }: { items: BrochureHistoryItem[] }) {
+/** Прошедшие акции из истории брошюр: где, почём и на каких условиях было; «♡ Следи» — в любимые */
+function PastOffers({ items }: { items: HistoryProduct[] }) {
   const st = useStore();
   const { t, lang } = st;
   const k = useK();
@@ -294,39 +292,34 @@ function PastOffers({ items }: { items: BrochureHistoryItem[] }) {
         🕘 {t("pastTitle", { n: items.length })}
       </Text>
       <Text style={[s.muted, { fontSize: 14 * k }]}>{t("pastNote")}</Text>
-      {items.map((h) => {
-        const followed = st.favorites.some((f) => matchesWords(f.words, `${h.n} ${h.b ?? ""}`));
-        const p = h.g ? st.productById.get(h.g) : undefined;
+      {items.map((p) => {
+        const followed = st.favorites.some((f) => matchesWords(f.words, `${p.n} ${p.b ?? ""}`));
+        const g = p.g ? st.productById.get(p.g) : undefined;
         return (
           <View
-            key={`${h.c}|${h.n}|${h.b ?? ""}`}
-            style={{ backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 12, gap: 6, opacity: 0.95 }}
+            key={p.key}
+            style={{ backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 12, gap: 6 }}
           >
             <View style={[s.row, { gap: 10, alignItems: "flex-start" }]}>
-              <Text style={{ fontSize: 26 * k }}>{p ? productEmoji(p) : CAT_EMOJI[h.a ?? 0] ?? "🏷️"}</Text>
+              <Text style={{ fontSize: 26 * k }}>{g ? productEmoji(g) : (CAT_EMOJI[p.a ?? 0] ?? "🏷️")}</Text>
               <View style={{ flex: 1, gap: 2 }}>
-                <Text style={{ fontWeight: "700", fontSize: 15.5 * k, color: C.ink }}>{h.n}</Text>
-                <Text style={[s.muted, { fontSize: 13.5 * k }]}>
-                  {[
-                    st.history?.chains[h.c]?.name ?? "",
-                    h.p != null ? money(h.p, lang) : "",
-                    h.r ? `(${money(h.r, lang)})` : "",
-                    `${shortDate(h.f)}–${shortDate(h.t)}`,
-                    h.k ? t("withCard") : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </Text>
+                <Text style={{ fontWeight: "700", fontSize: 15.5 * k, color: C.ink }}>{p.n}</Text>
+                <Text style={[s.muted, { fontSize: 13.5 * k }]}>{historyLine(p.last!, t, lang, { weeks: p.weeks })}</Text>
+                {!!p.next && (
+                  <Text style={{ color: C.promo, fontWeight: "700", fontSize: 13.5 * k }}>
+                    {t("histNext", { what: historyLine(p.next, t, lang, { chain: false }) })}
+                  </Text>
+                )}
               </View>
             </View>
             <Pressable
               onPress={() => {
-                st.addFavorite(favNameFrom(h.n, h.b));
-                track("favorite_from_history", { product: h.n });
+                st.addFavorite(favNameFrom(p.n, p.b));
+                track("favorite_from_history", { product: p.n });
               }}
               disabled={followed}
               accessibilityRole="button"
-              accessibilityLabel={`${followed ? t("favFollowing") : t("favFollow")}: ${h.n}`}
+              accessibilityLabel={`${followed ? t("favFollowing") : t("favFollow")}: ${p.n}`}
               style={[s.row, { gap: 6, alignSelf: "flex-start", minHeight: 36 }]}
             >
               <Icon name={followed ? "heart" : "heart-outline"} size={20 * k} color={C.promo} />
@@ -770,7 +763,7 @@ function OfferRow({ o, today }: { o: BrochureOffer; today: string }) {
           : t("validTo", { date: shortDate(o.t) })
       }
       card={!!o.k}
-      condition={o.w}
+      condition={o.w ?? (conditionKey(o) ? t(conditionKey(o) as TKey) : undefined)}
       check={check}
       onFollow={() => {
         const f = st.addFavorite(favNameFromOffer(o));
