@@ -2,16 +2,20 @@ import { usePathname } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { AppState, Text } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { AppState } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { flush, track } from "../lib/analytics";
 import { StoreProvider, useStore } from "../lib/store";
 import { Paywall } from "../Paywall";
 import { C } from "../ui";
 
-const icon = (emoji: string) => ({ focused }: { focused: boolean }) => (
-  <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>
-);
+type IconName = React.ComponentProps<typeof Ionicons>["name"];
+/** Единый набор иконок для вкладок (вместо разных системных emoji) */
+const icon =
+  (on: IconName, off: IconName) =>
+  // eslint-disable-next-line react/display-name -- функция отрисовки иконки вкладки, не самостоятельный компонент
+  ({ focused, color }: { focused: boolean; color: unknown }) => <Ionicons name={focused ? on : off} size={26} color={String(color ?? C.muted)} />;
 
 function AppTabs() {
   const { basket, t, settings } = useStore();
@@ -30,17 +34,21 @@ function AppTabs() {
         tabBarActiveTintColor: C.green,
         tabBarInactiveTintColor: C.muted,
         tabBarStyle: { backgroundColor: C.card, borderTopColor: C.line },
-        tabBarLabelStyle: { fontWeight: "700", fontSize: 12 },
+        tabBarLabelStyle: { fontWeight: "700", fontSize: 13 },
       }}
     >
+      {/* Основные вкладки: Кошница · Продукти · Оферти · План; настройки — шестерёнка в заголовке каждого экрана */}
       <Tabs.Screen
         name="index"
-        options={{ title: t("tabBasket"), tabBarIcon: icon("🧺"), tabBarBadge: basket.length || undefined }}
+        options={{ title: t("tabBasket"), tabBarIcon: icon("basket", "basket-outline"), tabBarBadge: basket.length || undefined }}
       />
-      <Tabs.Screen name="deals" options={{ title: t("tabDeals"), tabBarIcon: icon("🔥"), href: settings.easy ? null : undefined }} />
-      <Tabs.Screen name="catalog" options={{ title: t("tabProducts"), tabBarIcon: icon("🔎") }} />
-      <Tabs.Screen name="result" options={{ title: t("tabSavings"), tabBarIcon: icon("💶") }} />
-      <Tabs.Screen name="settings" options={{ title: t("tabSettings"), tabBarIcon: icon("⚙️") }} />
+      <Tabs.Screen name="catalog" options={{ title: t("tabProducts"), tabBarIcon: icon("search", "search-outline") }} />
+      <Tabs.Screen
+        name="deals"
+        options={{ title: t("tabDeals"), tabBarIcon: icon("pricetags", "pricetags-outline"), href: settings.easy ? null : undefined }}
+      />
+      <Tabs.Screen name="result" options={{ title: t("tabPlan"), tabBarIcon: icon("list", "list-outline") }} />
+      <Tabs.Screen name="settings" options={{ title: t("tabSettings"), href: null }} />
     </Tabs>
   );
 }

@@ -4,15 +4,16 @@ import { useMemo, useState } from "react";
 import { FlatList, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { track } from "./lib/analytics";
 import { offerStatus, shortDate, todayIso, unitPriceLabel, visibleChains } from "./lib/brochures";
+import { itemKey, pinFromBrochure } from "./lib/pins";
 import { useStore } from "./lib/store";
 import type { BrochureOffer } from "./lib/types";
-import { C, Chip, money, s } from "./ui";
+import { C, Chip, money, qtyLabel, s, Stepper } from "./ui";
 
 const fold = (t: string) => t.toLowerCase().replace(/ъ/g, "а").replace(/ё/g, "е");
 
 export function BrochureList({ header }: { header: React.ReactElement }) {
   const st = useStore();
-  const { t, lang, brochures: bro, settings } = st;
+  const { t, brochures: bro } = st;
   const today = todayIso();
   const [chain, setChain] = useState<number | null>(null);
   const [q, setQ] = useState("");
@@ -102,58 +103,59 @@ function OfferRow({ o, today }: { o: BrochureOffer; today: string }) {
   const st = useStore();
   const { t, lang, brochures: bro } = st;
   const soon = offerStatus(o, today) === "soon";
-  const product = o.g ? st.productById.get(o.g) : undefined;
-  const inBasket = !!product && st.basket.some((b) => b.productId === product.id);
+  const chain = bro?.chains[o.c]?.name ?? "";
+  const id = o.i ?? "";
+  const pinKey = bro && o.p != null ? `pin:${pinFromBrochure(o, bro).id}` : "";
+  const inBasket = pinKey ? st.basket.find((b) => itemKey(b) === pinKey) : undefined;
   const unit = unitPriceLabel(o.u, lang);
+  const perKg = !!inBasket?.pin?.perKg;
 
+  // иерархия: название → фасовка/цена за единицу → цена → сеть, срок, карта, условие → действие
   return (
-    <View style={[s.card, { padding: 14, gap: 4, opacity: soon ? 0.85 : 1 }]}>
-      <View style={[s.row, { justifyContent: "space-between", alignItems: "flex-start", gap: 10 }]}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={[s.body, { fontWeight: "700" }]} numberOfLines={2}>
-            {o.n}
-          </Text>
-          <Text style={s.muted} numberOfLines={1}>
-            {bro?.chains[o.c]?.name}
-            {unit ? ` · ${unit}` : ""}
-          </Text>
-        </View>
-        <View style={{ alignItems: "flex-end", gap: 2 }}>
-          {o.p != null ? (
-            <Text style={[s.num, { fontWeight: "800", color: C.promo, fontSize: 17 }]}>{money(o.p, lang)}</Text>
-          ) : null}
-          {o.r != null ? <Text style={[s.muted, { textDecorationLine: "line-through" }]}>{money(o.r, lang)}</Text> : null}
-        </View>
+    <View style={[s.card, { padding: 14, gap: 6, opacity: soon ? 0.9 : 1 }]} accessible={false}>
+      <Text style={[s.body, { fontWeight: "700", fontSize: 18 }]}>{o.n}</Text>
+      {(!!o.b || !!unit) && <Text style={s.muted}>{[o.b, unit].filter(Boolean).join(" · ")}</Text>}
+      <View style={[s.row, { gap: 8, alignItems: "baseline", flexWrap: "wrap" }]}>
+        {o.p != null && <Text style={[s.num, { fontWeight: "800", color: C.ink, fontSize: 22 }]}>{money(o.p, lang)}</Text>}
+        {o.r != null && <Text style={[s.muted, { textDecorationLine: "line-through" }]}>{money(o.r, lang)}</Text>}
+        {!!o.d && <Text style={[s.muted, { color: C.promo, fontWeight: "700" }]}>−{o.d}%</Text>}
       </View>
-
       <View style={[s.row, { gap: 6, flexWrap: "wrap", alignItems: "center" }]}>
-        {o.d ? <Badge text={`−${o.d}%`} bg={C.promo} color="#fff" /> : null}
+        <Badge text={chain} bg="#EEE8DC" color={C.ink} />
         <Badge
           text={soon ? `${t("validFrom", { date: shortDate(o.f) })} · ${t("soon")}` : t("validTo", { date: shortDate(o.t) })}
           bg={soon ? "#FFF1D6" : C.greenSoft}
           color={soon ? "#8A5A00" : C.green}
         />
         {o.k ? <Badge text={`🪪 ${t("withCard")}`} bg="#EEE8DC" color={C.ink} /> : null}
-        <View style={{ flex: 1 }} />
-        {product && (
-          <Pressable
-            onPress={() => {
-              if (inBasket) return;
-              track("brochure_added", { group: product.id, chain: bro?.chains[o.c]?.name, product: o.n, pct: o.d, soon });
-              st.addItem(product.id);
-            }}
-            style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: inBasket ? C.greenSoft : C.green }}
-          >
-            <Text style={{ color: inBasket ? C.green : "#fff", fontWeight: "700", fontSize: 13 }}>
-              {inBasket ? `✓ ${t("added")}` : `+ ${t("add")}`}
-            </Text>
-          </Pressable>
-        )}
       </View>
-      {!!o.w && (
-        <Text style={[s.muted, { fontSize: 12 }]} numberOfLines={2}>
-          {o.w}
-        </Text>
+      {!!o.w && <Text style={[s.muted, { fontSize: 14 }]}>{o.w}</Text>}
+      {bro && o.p != null && (
+        <View style={[s.row, { justifyContent: "flex-end", marginTop: 4 }]}>
+          {inBasket ? (
+            <View style={[s.row, { gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }]}>
+              <Text style={[s.muted, { color: C.green, fontWeight: "700" }]}>✓ {t("inBasketQty")}</Text>
+              <Stepper
+                value={inBasket.qty}
+                label={qtyLabel(inBasket.qty, perKg, t, lang)}
+                onMinus={() => st.setQty(pinKey, Math.round((inBasket.qty - (perKg ? 0.5 : 1)) * 10) / 10)}
+                onPlus={() => st.setQty(pinKey, Math.round((inBasket.qty + (perKg ? 0.5 : 1)) * 10) / 10)}
+              />
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => {
+                track("brochure_added", { group: o.g, chain, product: o.n, pct: o.d, soon, id });
+                st.addPinned(pinFromBrochure(o, bro), o.g && st.productById.has(o.g) ? o.g : 0);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`${t("pinAddA11y")}: ${o.n}, ${chain}`}
+              style={({ pressed }) => [s.btn, { minHeight: 48, paddingVertical: 12, opacity: pressed ? 0.85 : 1 }]}
+            >
+              <Text style={[s.btnText, { fontSize: 16 }]}>+ {t("pinAdd")}</Text>
+            </Pressable>
+          )}
+        </View>
       )}
     </View>
   );

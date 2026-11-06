@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { FlatList, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ScreenHeader } from "../components";
 import { cheapest, excludedIndexes } from "../lib/prices";
 import { useStore } from "../lib/store";
 import { categoryName, productDetail, productName, splitName } from "../lib/i18n";
@@ -34,7 +35,7 @@ export default function CatalogScreen() {
   return (
     <SafeAreaView style={s.screen} edges={["top"]}>
       <View style={[s.pad, { paddingBottom: 6 }]}>
-        <Text style={s.title}>{t("tabProducts")}</Text>
+        <ScreenHeader title={t("tabProducts")} />
         <TextInput
           value={q}
           onChangeText={setQ}
@@ -70,7 +71,7 @@ export default function CatalogScreen() {
           const name = splitName(productName(p, lang), lang)[0];
                 const detail = productDetail(p, lang, t);
           const c = cheapest(st.city, p.id, st.settings.usePromo, excluded);
-          const inBasket = st.basket.find((b) => b.productId === p.id);
+          const inBasket = st.basket.find((b) => !b.pin && b.productId === p.id);
           const step = st.qtyStep(p.id);
           return (
             <View style={[s.row, { paddingVertical: 14, flexWrap: "wrap" }]}>
@@ -89,12 +90,14 @@ export default function CatalogScreen() {
                 <Stepper
                   value={inBasket.qty}
                   label={qtyLabel(inBasket.qty, p.byWeight, t, lang)}
-                  onMinus={() => st.setQty(p.id, Math.round((inBasket.qty - step) * 10) / 10)}
-                  onPlus={() => st.setQty(p.id, Math.round((inBasket.qty + step) * 10) / 10)}
+                  onMinus={() => st.setQty(`g:${p.id}`, Math.round((inBasket.qty - step) * 10) / 10)}
+                  onPlus={() => st.setQty(`g:${p.id}`, Math.round((inBasket.qty + step) * 10) / 10)}
                 />
               ) : (
                 <Pressable
                   onPress={() => st.addItem(p.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t("add")}: ${name}`}
                   disabled={!c}
                   style={{
                     width: 52 * kf,

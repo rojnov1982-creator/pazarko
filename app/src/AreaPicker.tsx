@@ -28,6 +28,7 @@ export function AreaPicker({ visible, onClose }: { visible: boolean; onClose: ()
   // при открытии — текущее состояние
   useEffect(() => {
     if (!visible) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- при открытии окна берём текущий район
     setTab(area.mode);
     setIds(area.mode === "stores" ? area.ids : []);
     if (area.mode === "near") {

@@ -1,13 +1,21 @@
+// Кошница: город и район, состояние данных, позиции (обычные и закреплённые предложения),
+// предварительная сумма — тем же расчётом, что и «План».
+
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AreaPicker } from "../AreaPicker";
+import { DataStatus, Icon, itemName, PinBadge, PinInfo, ScreenHeader } from "../components";
 import { ANALYTICS_AVAILABLE } from "../lib/analytics";
+import { shortDate } from "../lib/brochures";
 import { IS_DEMO } from "../lib/data";
 import { brandLabel, OWN_BRAND, productDetail, productName, splitName } from "../lib/i18n";
-import { brandsInCity, cheapest, excludedIndexes } from "../lib/prices";
+import { itemKey } from "../lib/pins";
+import { brandsInCity, cheapest } from "../lib/prices";
 import { PRESETS, useStore } from "../lib/store";
-import { AreaPicker } from "../AreaPicker";
+import type { BasketItem } from "../lib/types";
+import { usePlan } from "../lib/usePlan";
 import { Button, C, Card, DemoBanner, H, money, productEmoji, PromoBadge, qtyLabel, Stepper, useK, useS } from "../ui";
 
 /** «гр. София» → «София» / «Sofia» */
@@ -17,16 +25,14 @@ const cityLabel = (name: string, nameEn: string, lang: string) =>
 export default function BasketScreen() {
   const st = useStore();
   const { t, lang } = st;
-  const [picker, setPicker] = useState(false);
-  const [brandFor, setBrandFor] = useState<number | null>(null);
-  const [areaOpen, setAreaOpen] = useState(false);
-  const excluded = useMemo(
-    () => excludedIndexes(st.city, st.excludedEiks, st.settings.onlyGrocery),
-    [st.city, st.excludedEiks, st.settings.onlyGrocery],
-  );
   const s = useS();
   const kf = useK();
   const easy = st.settings.easy === true;
+  const [picker, setPicker] = useState(false);
+  const [brandFor, setBrandFor] = useState<string | null>(null);
+  const [areaOpen, setAreaOpen] = useState(false);
+  const plan = usePlan();
+  const { excluded } = plan;
 
   if (!st.ready) {
     return (
@@ -37,109 +43,59 @@ export default function BasketScreen() {
   }
 
   const cur = st.index?.cities.find((c) => c.ekatte === st.ekatte);
-  const estimate = st.basket.reduce((sum, b) => {
-    const c = cheapest(st.city, b.productId, st.settings.usePromo, excluded);
-    return sum + (c ? c.price * b.qty : 0);
-  }, 0);
+  const brandItem = brandFor ? st.basket.find((b) => itemKey(b) === brandFor) : undefined;
+  const r = plan.result;
 
   return (
     <SafeAreaView style={s.screen} edges={["top"]}>
-      <ScrollView contentContainerStyle={[s.pad, { paddingBottom: 140 }]}>
-        <View style={[s.row, { justifyContent: "space-between" }]}>
-          <Text style={s.title}>{t("appName")}</Text>
-          <Pressable onPress={() => setPicker(true)} style={[s.chip, s.row, { gap: 6 }]}>
-            <Text>📍</Text>
-            <Text style={s.chipText}>{cur ? cityLabel(cur.name, cur.nameEn, lang) : t("chooseCity")}</Text>
-            <Text style={{ color: C.muted }}>▾</Text>
+      <ScrollView contentContainerStyle={[s.pad, { paddingBottom: 170 }]}>
+        <ScreenHeader title={t("appName")} />
+
+        {/* Город и район — первым делом */}
+        <View style={[s.row, { flexWrap: "wrap", gap: 8 }]}>
+          <Pressable
+            onPress={() => setPicker(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`${t("city")}: ${cur ? cityLabel(cur.name, cur.nameEn, lang) : t("chooseCity")}`}
+            style={[s.chip, s.row, { gap: 6, borderColor: C.green }]}
+          >
+            <Icon name="location-outline" size={20} color={C.green} />
+            <Text style={[s.chipText, { fontWeight: "800" }]}>{cur ? cityLabel(cur.name, cur.nameEn, lang) : t("chooseCity")}</Text>
+            <Icon name="chevron-down" size={16} color={C.muted} />
           </Pressable>
+          {!easy && (
+            <Pressable onPress={() => setAreaOpen(true)} accessibilityRole="button" style={[s.chip, s.row, { gap: 6 }]}>
+              <Icon name="storefront-outline" size={20} color={C.ink} />
+              <Text style={s.chipText}>
+                {st.area.mode === "city"
+                  ? t("areaCity")
+                  : st.area.mode === "stores"
+                    ? `${t("areaMyStores")} (${st.areaStoreCount})`
+                    : `${st.area.label} · ${t("km", { n: st.area.radiusKm })}`}
+              </Text>
+              <Icon name="chevron-down" size={16} color={C.muted} />
+            </Pressable>
+          )}
         </View>
-        {!easy && (
-        <Text style={s.muted}>
-          {t("pricesOn", { date: st.index?.date ?? "—" })} · {!st.city
-            ? t("loading")
-            : st.area.mode !== "city" && st.areaStoreCount > 0
-              ? t("storesFound", { n: st.city.chains.length })
-              : t("chainsInCity", { n: st.city.chains.filter((c) => !st.settings.onlyGrocery || !c.kind || c.kind === "grocery").length })}
-        </Text>
-        )}
-        {!easy && (
-        <Pressable onPress={() => setAreaOpen(true)} style={[s.chip, s.row, { gap: 6, alignSelf: "flex-start" }]}>
-          <Text>🏪</Text>
-          <Text style={s.chipText}>
-            {st.area.mode === "city"
-              ? t("areaCity")
-              : st.area.mode === "stores"
-                ? `${t("areaMyStores")} (${st.areaStoreCount})`
-                : `${st.area.label} · ${t("km", { n: st.area.radiusKm })} (${st.areaStoreCount})`}
-          </Text>
-          <Text style={{ color: C.muted }}>▾</Text>
-        </Pressable>
-        )}
-        {st.area.mode !== "city" && st.areaStoreCount === 0 && <Text style={{ color: C.promo }}>{t("noStoresInArea")}</Text>}
+
+        <DataStatus onOpenArea={() => setAreaOpen(true)} />
         {IS_DEMO && <DemoBanner />}
-        {st.settings.easy == null && (
-          <Card style={{ gap: 12, borderColor: C.green, borderWidth: 2 }}>
-            <Text style={[s.body, { fontWeight: "800", fontSize: 22 }]}>{t("easyAskTitle")}</Text>
-            {([true, false] as const).map((v) => (
-              <Pressable
-                key={String(v)}
-                onPress={() => st.updateSettings({ easy: v })}
-                style={({ pressed }) => [
-                  s.btn,
-                  !v && s.btnGhost,
-                  { alignItems: "flex-start", paddingHorizontal: 18, opacity: pressed ? 0.85 : 1 },
-                ]}
-              >
-                <Text style={[s.btnText, { fontSize: v ? 22 : 18, color: v ? "#fff" : C.green }]}>
-                  {v ? "👓 " : "⚙️ "}
-                  {t(v ? "easyAskEasy" : "easyAskFull")}
-                </Text>
-                <Text style={{ color: v ? "#CFE6D6" : C.muted, fontSize: v ? 17 : 15, marginTop: 2 }}>
-                  {t(v ? "easyAskEasySub" : "easyAskFullSub")}
-                </Text>
-              </Pressable>
-            ))}
-          </Card>
-        )}
-        {ANALYTICS_AVAILABLE && st.settings.easy != null && st.settings.analytics === null && (
-          <Card style={{ gap: 8, backgroundColor: C.greenSoft, borderColor: C.greenSoft }}>
-            <Text style={[s.body, { fontWeight: "700" }]}>📊 {t("analyticsAskTitle")}</Text>
-            <Text style={s.muted}>{t("analyticsAskText")}</Text>
-            <View style={[s.row, { gap: 8, marginTop: 4 }]}>
-              <Button title={t("analyticsYes")} onPress={() => st.updateSettings({ analytics: true })} style={{ flex: 1 }} />
-              <Pressable onPress={() => st.updateSettings({ analytics: false })} hitSlop={8} style={{ paddingHorizontal: 12 }}>
-                <Text style={{ color: C.muted, fontWeight: "600" }}>{t("analyticsNo")}</Text>
-              </Pressable>
-            </View>
-          </Card>
-        )}
-        {st.error && (
-          <Text style={{ color: C.promo }}>
-            {t("error")}: {st.error}
-          </Text>
-        )}
 
         {st.basket.length === 0 ? (
           <>
-            <Card style={{ gap: 14 }}>
-              <Text style={[s.body, { fontWeight: "800", fontSize: 20 * kf }]}>{t("howTitle")}</Text>
-              {(["how1", "how2", "how3"] as const).map((k, i) => (
-                <View key={k} style={[s.row, { alignItems: "flex-start", gap: 12 }]}>
-                  <View
-                    style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.green, alignItems: "center", justifyContent: "center" }}
-                  >
-                    <Text style={{ color: "#fff", fontWeight: "800", fontSize: 18 }}>{i + 1}</Text>
-                  </View>
-                  <Text style={[s.body, { flex: 1, fontSize: 18 * kf, marginTop: 5 }]}>{t(k)}</Text>
-                </View>
-              ))}
-              <Button title={t("pickProducts")} onPress={() => router.push("/catalog")} style={{ marginTop: 4 }} />
+            {/* Первый запуск: главные действия — продукты и готовые корзины */}
+            <Card style={{ gap: 12 }}>
+              <Text style={[s.body, { fontWeight: "800", fontSize: 20 * kf }]}>{t("startHere")}</Text>
+              <Text style={s.muted}>{t("buildBasketHint")}</Text>
+              <Button title={`+ ${t("pickProducts")}`} onPress={() => router.push("/catalog")} />
             </Card>
-            <H style={{ marginTop: 8 }}>{t("readyBaskets")}</H>
+            <H style={{ marginTop: 4 }}>{t("readyBaskets")}</H>
             {PRESETS.map((p) => (
-              <Pressable key={p.id} onPress={() => st.loadPreset(p.items, p.id)}>
+              <Pressable key={p.id} onPress={() => st.loadPreset(p.items, p.id)} accessibilityRole="button" accessibilityLabel={t(p.title)}>
                 <Card style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                  <Text style={{ fontSize: 34 }}>{p.emoji}</Text>
+                  <Text style={{ fontSize: 34 }} importantForAccessibility="no">
+                    {p.emoji}
+                  </Text>
                   <View style={{ flex: 1 }}>
                     <Text style={[s.body, { fontWeight: "700" }]}>{t(p.title)}</Text>
                     <Text style={s.muted}>{t("nItems", { n: p.items.length })}</Text>
@@ -153,110 +109,107 @@ export default function BasketScreen() {
           <>
             <View style={[s.row, { justifyContent: "space-between", marginTop: 4 }]}>
               <H>{t("nItems", { n: st.basket.length })}</H>
-              <Pressable onPress={st.clearBasket} hitSlop={8}>
-                <Text style={{ color: C.promo, fontWeight: "600" }}>{t("clear")}</Text>
+              <Pressable onPress={st.clearBasket} hitSlop={8} accessibilityRole="button">
+                <Text style={{ color: C.promo, fontWeight: "700", fontSize: 15 }}>{t("clear")}</Text>
               </Pressable>
             </View>
             <Card style={{ padding: 0 }}>
-              {st.basket.map((b, i) => {
-                const p = st.productById.get(b.productId);
-                if (!p) return null;
-                const name = splitName(productName(p, lang), lang)[0];
-                const detail = productDetail(p, lang, t);
-                const c = cheapest(st.city, b.productId, st.settings.usePromo, excluded, b.brand);
-                const step = st.qtyStep(b.productId);
-                const canBrand = p.hasBrands && !!st.city?.brands?.[String(p.id)];
-                return (
-                  <View key={b.productId}>
-                    {i > 0 && <View style={s.divider} />}
-                    {/* две строки: название целиком, ниже количество и марка — ничего не обрезается при крупном шрифте */}
-                    <View style={{ padding: 14, gap: 10 }}>
-                      <View style={[s.row, { alignItems: "flex-start", gap: 12 }]}>
-                        <Text style={{ fontSize: 30 * kf }}>{productEmoji(p)}</Text>
-                        <View style={{ flex: 1, gap: 2 }}>
-                          <Text style={[s.body, { fontWeight: "700", fontSize: 18 * kf }]}>{name}</Text>
-                          <Text style={[s.muted, { color: c ? C.green : C.promo, fontWeight: "700", fontSize: 16 * kf }]}>
-                            {c ? `${t("from", { price: money(c.price, lang) })}${p.byWeight ? t("perKg") : ""}` : t("notInCity")}
-                          </Text>
-                          {!!detail && <Text style={s.muted}>{detail}</Text>}
-                        </View>
-                      </View>
-                      <View style={[s.row, { flexWrap: "wrap", gap: 10 }]}>
-                        <Stepper
-                          value={b.qty}
-                          label={qtyLabel(b.qty, p.byWeight, t, lang)}
-                          onMinus={() => st.setQty(b.productId, Math.round((b.qty - step) * 10) / 10)}
-                          onPlus={() => st.setQty(b.productId, Math.round((b.qty + step) * 10) / 10)}
-                        />
-                        {canBrand && !easy && (
-                          <Pressable
-                            onPress={() => (st.can("brandMode") ? setBrandFor(p.id) : st.openPaywall())}
-                            hitSlop={6}
-                            style={[s.chip, { flexDirection: "row", gap: 4 }]}
-                          >
-                            <Text style={[s.chipText, { color: b.brand ? C.green : C.muted }]}>
-                              🏷️ {b.brand ? brandLabel(b.brand, t) : t("brandShort")} ▾{st.can("brandMode") ? "" : " 🔒"}
-                            </Text>
-                          </Pressable>
-                        )}
-                      </View>
-                    </View>
-                  </View>
-                );
-              })}
+              {st.basket.map((b, i) => (
+                <View key={itemKey(b)}>
+                  {i > 0 && <View style={s.divider} />}
+                  <BasketRow b={b} onBrand={() => setBrandFor(itemKey(b))} status={b.pin ? plan.pinStatuses.get(itemKey(b)) : undefined} excluded={excluded} />
+                </View>
+              ))}
             </Card>
             <Button title={t("addProducts")} kind="ghost" onPress={() => router.push("/catalog")} />
           </>
         )}
+
+        {/* Необязательные вопросы — ниже основных действий и не мешают работе */}
+        {st.settings.easy == null && (
+          <Card style={{ gap: 10, backgroundColor: C.greenSoft, borderColor: C.greenSoft }}>
+            <Text style={[s.body, { fontWeight: "700" }]}>👓 {t("easyInlineAsk")}</Text>
+            <Text style={s.muted}>{t("easyModeSub")}</Text>
+            <View style={[s.row, { gap: 10, flexWrap: "wrap" }]}>
+              <Button title={t("easyInlineOn")} onPress={() => st.updateSettings({ easy: true })} style={{ flexGrow: 1 }} />
+              <Pressable onPress={() => st.updateSettings({ easy: false })} hitSlop={8} accessibilityRole="button" style={{ padding: 10 }}>
+                <Text style={{ color: C.muted, fontWeight: "700", fontSize: 16 }}>{t("easyInlineNo")}</Text>
+              </Pressable>
+            </View>
+          </Card>
+        )}
+        {ANALYTICS_AVAILABLE && st.settings.analytics === null && (
+          <Card style={{ gap: 8 }}>
+            <Text style={[s.body, { fontWeight: "700" }]}>📊 {t("analyticsAskTitle")}</Text>
+            <Text style={s.muted}>{t("analyticsAskText")}</Text>
+            <View style={[s.row, { gap: 10, flexWrap: "wrap" }]}>
+              <Button title={t("analyticsYes")} kind="ghost" onPress={() => st.updateSettings({ analytics: true })} style={{ flexGrow: 1 }} />
+              <Pressable onPress={() => st.updateSettings({ analytics: false })} hitSlop={8} accessibilityRole="button" style={{ padding: 10 }}>
+                <Text style={{ color: C.muted, fontWeight: "700", fontSize: 16 }}>{t("analyticsNo")}</Text>
+              </Pressable>
+            </View>
+          </Card>
+        )}
       </ScrollView>
 
+      {/* Предварительная сумма — тот же расчёт, что и в «План», с полнотой корзины */}
       {st.basket.length > 0 && (
         <View style={{ position: "absolute", left: 16, right: 16, bottom: 12 }}>
           <Pressable
             onPress={() => router.push("/result")}
-            style={({ pressed }) => [
-              s.btn,
-              { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 18, opacity: pressed ? 0.85 : 1 },
-            ]}
+            accessibilityRole="button"
+            accessibilityLabel={
+              r ? `${t("seePlan")}. ${t("estimate")} ${money(r.plan.total, lang)}, ${t("estimateOf", { n: plan.found, total: plan.total })}` : t("seePlan")
+            }
+            style={({ pressed }) => [s.btn, { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10, opacity: pressed ? 0.85 : 1 }]}
           >
-            <Text style={[s.btnText, { flexShrink: 1, textAlign: "left" }]}>{t("findBest")} →</Text>
-            <Text style={[s.btnText, { fontWeight: "500", fontSize: 16 * kf, flexShrink: 0, marginLeft: 8 }]}>
-              {t("from", { price: money(estimate, lang) })}
-            </Text>
+            <Text style={[s.btnText, { flexShrink: 1, textAlign: "left" }]}>{t("seePlan")} →</Text>
+            {r ? (
+              <View style={{ alignItems: "flex-end", flexShrink: 0 }}>
+                <Text style={{ color: "#CFE6D6", fontSize: 13 * kf, fontWeight: "600" }}>{t("estimate")}</Text>
+                <Text style={[s.btnText, { fontSize: 18 * kf }]}>
+                  {r.plan.approx ? "≈ " : ""}
+                  {money(r.plan.total, lang)}
+                </Text>
+                <Text style={{ color: plan.found < plan.total ? "#FFE1D8" : "#CFE6D6", fontSize: 13 * kf, fontWeight: "600" }}>
+                  {t("estimateOf", { n: plan.found, total: plan.total })}
+                </Text>
+              </View>
+            ) : (
+              <Text style={[s.btnText, { fontWeight: "500", fontSize: 15 * kf }]}>{t("calculating")}</Text>
+            )}
           </Pressable>
         </View>
       )}
 
       <AreaPicker visible={areaOpen} onClose={() => setAreaOpen(false)} />
 
-      <Modal visible={brandFor != null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setBrandFor(null)}>
+      <Modal visible={!!brandItem} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setBrandFor(null)}>
         <View style={[s.screen, s.pad]}>
           <View style={[s.row, { justifyContent: "space-between" }]}>
             <View style={{ flex: 1 }}>
               <Text style={[s.title, { fontSize: 22 }]}>{t("chooseBrand")}</Text>
-              <Text style={s.muted} numberOfLines={1}>
-                {brandFor != null ? splitName(productName(st.productById.get(brandFor), lang), lang)[0] : ""}
-              </Text>
+              <Text style={s.muted}>{brandItem ? splitName(productName(st.productById.get(brandItem.productId), lang), lang)[0] : ""}</Text>
             </View>
-            <Pressable onPress={() => setBrandFor(null)} hitSlop={10}>
-              <Text style={{ color: C.green, fontWeight: "700" }}>{t("done")}</Text>
+            <Pressable onPress={() => setBrandFor(null)} hitSlop={10} accessibilityRole="button">
+              <Text style={{ color: C.green, fontWeight: "700", fontSize: 17 }}>{t("done")}</Text>
             </Pressable>
           </View>
-          {brandFor != null && (
+          {brandItem && (
             <FlatList
-              data={[null, ...brandsInCity(st.city, brandFor, st.settings.usePromo, excluded)]}
+              data={[null, ...brandsInCity(st.city, brandItem.productId, st.settings.usePromo, excluded)]}
               keyExtractor={(x) => x?.brand ?? "__any"}
               ItemSeparatorComponent={() => <View style={s.divider} />}
               renderItem={({ item }) => {
-                const cur = st.basket.find((b) => b.productId === brandFor)?.brand;
-                const active = (item?.brand ?? undefined) === cur;
-                const any = item ? null : cheapest(st.city, brandFor, st.settings.usePromo, excluded);
+                const active = (item?.brand ?? undefined) === brandItem.brand;
+                const any = item ? null : cheapest(st.city, brandItem.productId, st.settings.usePromo, excluded);
                 return (
                   <Pressable
                     onPress={() => {
-                      st.setBrand(brandFor, item?.brand);
+                      st.setBrand(brandFor!, item?.brand);
                       setBrandFor(null);
                     }}
+                    accessibilityRole="button"
                     style={[s.row, { paddingVertical: 14 }]}
                   >
                     <View style={{ flex: 1 }}>
@@ -268,7 +221,7 @@ export default function BasketScreen() {
                       </Text>
                     </View>
                     {item?.promo && <PromoBadge />}
-                    {active && <Text style={{ color: C.green, fontSize: 18 }}>✓</Text>}
+                    {active && <Icon name="checkmark" size={22} color={C.green} />}
                   </Pressable>
                 );
               }}
@@ -281,8 +234,8 @@ export default function BasketScreen() {
         <View style={[s.screen, s.pad]}>
           <View style={[s.row, { justifyContent: "space-between" }]}>
             <Text style={[s.title, { fontSize: 22 }]}>{t("city")}</Text>
-            <Pressable onPress={() => setPicker(false)} hitSlop={10}>
-              <Text style={{ color: C.green, fontWeight: "700" }}>{t("done")}</Text>
+            <Pressable onPress={() => setPicker(false)} hitSlop={10} accessibilityRole="button">
+              <Text style={{ color: C.green, fontWeight: "700", fontSize: 17 }}>{t("done")}</Text>
             </Pressable>
           </View>
           <FlatList
@@ -295,20 +248,118 @@ export default function BasketScreen() {
                   st.selectCity(item.ekatte);
                   setPicker(false);
                 }}
+                accessibilityRole="button"
                 style={[s.row, { paddingVertical: 14 }]}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.body, { fontWeight: item.ekatte === st.ekatte ? "800" : "500" }]}>
-                    {cityLabel(item.name, item.nameEn, lang)}
+                  <Text style={[s.body, { fontWeight: item.ekatte === st.ekatte ? "800" : "500" }]}>{cityLabel(item.name, item.nameEn, lang)}</Text>
+                  <Text style={s.muted}>
+                    {t("cityStats", { chains: st.settings.onlyGrocery ? item.grocery ?? item.chains : item.chains, stores: item.stores, promos: item.promos })}
                   </Text>
-                  <Text style={s.muted}>{t("cityStats", { chains: st.settings.onlyGrocery ? item.grocery ?? item.chains : item.chains, stores: item.stores, promos: item.promos })}</Text>
                 </View>
-                {item.ekatte === st.ekatte && <Text style={{ color: C.green, fontSize: 18 }}>✓</Text>}
+                {item.ekatte === st.ekatte && <Icon name="checkmark" size={22} color={C.green} />}
               </Pressable>
             )}
           />
         </View>
       </Modal>
     </SafeAreaView>
+  );
+}
+
+/** Позиция корзины: название → фасовка → цена → количество; закреплённая акция — с сетью, сроком и условиями */
+function BasketRow({ b, onBrand, status, excluded }: { b: BasketItem; onBrand: () => void; status?: string; excluded: Set<number> }) {
+  const st = useStore();
+  const { t, lang } = st;
+  const s = useS();
+  const kf = useK();
+  const easy = st.settings.easy === true;
+  const key = itemKey(b);
+  const p = st.productById.get(b.productId);
+  const name = itemName(b, lang, st.productById);
+  const byWeight = b.pin ? !!b.pin.perKg : !!p?.byWeight;
+  const step = b.pin ? (b.pin.perKg ? 0.5 : 1) : st.qtyStep(b.productId);
+  const c = !b.pin && st.city ? cheapest(st.city, b.productId, st.settings.usePromo, excluded, b.brand) : null;
+  const detail = !b.pin && p ? productDetail(p, lang, t) : "";
+  const canBrand = !b.pin && !easy && p?.hasBrands && !!st.city?.brands?.[String(p.id)];
+  const pinProblem =
+    b.pin && status && status !== "now"
+      ? status === "expired"
+        ? b.pin.source === "kzp"
+          ? t("pinEnded")
+          : t("pinExpired", { date: shortDate(b.pin.to ?? "") })
+        : status === "soon"
+          ? t("pinSoon", { date: shortDate(b.pin.from ?? "") })
+          : t("pinUnavailable")
+      : "";
+
+  return (
+    <View style={{ padding: 14, gap: 10 }}>
+      <View style={[s.row, { alignItems: "flex-start", gap: 12 }]}>
+        <Text style={{ fontSize: 30 * kf }} importantForAccessibility="no">
+          {b.pin && !p ? "🏷️" : productEmoji(p)}
+        </Text>
+        <View style={{ flex: 1, gap: 3 }}>
+          <View style={[s.row, { gap: 6, flexWrap: "wrap" }]}>
+            <Text style={[s.body, { fontWeight: "700", fontSize: 18 * kf }]}>{name}</Text>
+            {b.pin && <PinBadge />}
+          </View>
+          {!!detail && <Text style={s.muted}>{detail}</Text>}
+          {b.pin ? (
+            <>
+              <Text style={[s.muted, { color: C.green, fontWeight: "800", fontSize: 16 * kf }]}>
+                {money(b.pin.price, lang)}
+                {b.pin.perKg ? t("perKg") : ""}
+                {b.pin.regular ? <Text style={{ color: C.muted, fontWeight: "500", textDecorationLine: "line-through" }}> {money(b.pin.regular, lang)}</Text> : null}
+              </Text>
+              <PinInfo pin={b.pin} />
+            </>
+          ) : (
+            <Text style={[s.muted, { color: c ? C.green : st.city ? C.promo : C.muted, fontWeight: "700", fontSize: 16 * kf }]}>
+              {!st.city ? t("loading") : c ? `${t("from", { price: money(c.price, lang) })}${p?.byWeight ? t("perKg") : ""}` : t("noPrice")}
+            </Text>
+          )}
+          {!!b.brand && easy && <Text style={s.muted}>🏷️ {brandLabel(b.brand, t)}</Text>}
+        </View>
+      </View>
+
+      {!!pinProblem && (
+        <View style={[s.card, { gap: 8, backgroundColor: "#FFF8E8", borderColor: "#F0DFA8", padding: 12 }]} accessibilityLiveRegion="polite">
+          <Text style={s.body}>⚠️ {pinProblem}</Text>
+          <View style={[s.row, { flexWrap: "wrap", gap: 8 }]}>
+            {b.productId > 0 && status !== "soon" && (
+              <Pressable onPress={() => st.allowSubstitute(key)} accessibilityRole="button" style={[s.chip, { borderColor: C.green }]}>
+                <Text style={[s.chipText, { color: C.green }]}>{t("allowSubstitute")}</Text>
+              </Pressable>
+            )}
+            <Pressable onPress={() => st.removeItem(key)} accessibilityRole="button" style={s.chip}>
+              <Text style={[s.chipText, { color: C.promo }]}>{t("remove")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      <View style={[s.row, { flexWrap: "wrap", gap: 10 }]}>
+        <Stepper
+          value={b.qty}
+          label={qtyLabel(b.qty, byWeight, t, lang)}
+          onMinus={() => st.setQty(key, Math.round((b.qty - step) * 10) / 10)}
+          onPlus={() => st.setQty(key, Math.round((b.qty + step) * 10) / 10)}
+        />
+        {canBrand && (
+          <Pressable
+            onPress={() => (st.can("brandMode") ? onBrand() : st.openPaywall())}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={`${t("chooseBrand")}: ${b.brand ? brandLabel(b.brand, t) : t("anyBrand")}`}
+            style={[s.chip, { flexDirection: "row", gap: 4 }]}
+          >
+            <Text style={[s.chipText, { color: b.brand ? C.green : C.muted }]}>
+              🏷️ {b.brand ? brandLabel(b.brand, t) : t("brandShort")} ▾{st.can("brandMode") ? "" : " 🔒"}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+    </View>
   );
 }

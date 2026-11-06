@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { bestBrochureOffer, matchChains, offerStatus, visibleChains } from "../src/lib/brochures";
+import { isMetro } from "../src/lib/prices";
 import type { BrochureFile, CityFile } from "../src/lib/types";
 
 const city = {
@@ -50,7 +51,6 @@ test("лучшее предложение: только действующее, 
   assert.equal(offerStatus(bro.offers[0], "2026-11-09"), "expired");
 });
 
-import { isMetro } from "../src/lib/prices";
 test("Metro распознаётся на кириллице и латинице, другие сети — нет", () => {
   assert.ok(isMetro({ name: "Метро България" }));
   assert.ok(isMetro({ name: "METRO Cash & Carry" }));

@@ -8,7 +8,11 @@ import { IS_DEMO } from "../lib/data";
 import { excludedIndexes } from "../lib/prices";
 import { useStore } from "../lib/store";
 import { BrochureList } from "../BrochureList";
-import { C, Chip, DemoBanner, money, productEmoji, s } from "../ui";
+import { C, Chip, DemoBanner, money, productEmoji, qtyLabel, s, Stepper } from "../ui";
+import { ScreenHeader } from "../components";
+import { shortDate } from "../lib/brochures";
+import { productName, splitName } from "../lib/i18n";
+import { itemKey, pinFromDeal } from "../lib/pins";
 
 export default function DealsScreen() {
   const st = useStore();
@@ -23,7 +27,7 @@ export default function DealsScreen() {
 
   const header = (
     <View style={{ gap: 8 }}>
-      <Text style={s.title}>{t("dealsTitle")}</Text>
+      <ScreenHeader title={t("tabDeals")} />
       <View style={[s.row, { gap: 8 }]}>
         <Chip label={`📰 ${t("dealsBrochures")}`} active={mode === "brochures"} onPress={() => setMode("brochures")} />
         <Chip label={`🔥 ${t("dealsToday")}`} active={mode === "today"} onPress={() => setMode("today")} />
@@ -52,44 +56,57 @@ export default function DealsScreen() {
         renderItem={({ item: d }) => {
           const [gid, ci, product, shelf, promo, pct, stores] = d;
           const p = st.productById.get(gid);
-          const inBasket = st.basket.some((b) => b.productId === gid);
+          const pin = city ? pinFromDeal(d, city, !!p?.byWeight) : null;
+          const key = pin ? `pin:${pin.id}` : "";
+          const inBasket = key ? st.basket.find((b) => itemKey(b) === key) : undefined;
+          const step = p?.byWeight ? 0.5 : 1;
+          // иерархия: название → группа → цена → сеть и магазины → действие; скидка — второстепенно
           return (
-            <View style={[s.card, s.row, { padding: 14, alignItems: "center" }]}>
-              <View style={{ width: 54, alignItems: "center", gap: 4 }}>
-                <Text style={{ fontSize: 30 }}>{productEmoji(p)}</Text>
-                <View style={{ backgroundColor: C.promo, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
-                  <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>−{pct}%</Text>
+            <View style={[s.card, { padding: 14, gap: 6 }]}>
+              <View style={[s.row, { alignItems: "flex-start", gap: 12 }]}>
+                <Text style={{ fontSize: 30 }} importantForAccessibility="no">
+                  {productEmoji(p)}
+                </Text>
+                <View style={{ flex: 1, gap: 3 }}>
+                  <Text style={[s.body, { fontWeight: "700", fontSize: 18 }]}>{product}</Text>
+                  {p && <Text style={s.muted}>{splitName(productName(p, lang), lang)[0]}</Text>}
+                  <View style={[s.row, { gap: 8, alignItems: "baseline", flexWrap: "wrap" }]}>
+                    <Text style={[s.num, { fontWeight: "800", color: C.ink, fontSize: 22 }]}>{money(promo, lang)}</Text>
+                    <Text style={[s.muted, { textDecorationLine: "line-through" }]}>{money(shelf, lang)}</Text>
+                    <Text style={[s.muted, { color: C.promo, fontWeight: "700" }]}>−{pct}%</Text>
+                  </View>
+                  <Text style={s.muted}>
+                    {city?.chains[ci]?.name} · {t("dealStores", { n: stores })} · {t("validTo", { date: city ? shortDate(city.date) : "" })}
+                  </Text>
                 </View>
               </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={[s.body, { fontWeight: "700" }]} numberOfLines={2}>
-                  {product}
-                </Text>
-                <Text style={s.muted} numberOfLines={1}>
-                  {city?.chains[ci]?.name} · {t("dealStores", { n: stores })}
-                </Text>
-                <View style={[s.row, { gap: 8 }]}>
-                  <Text style={[s.num, { fontWeight: "800", color: C.promo, fontSize: 16 }]}>{money(promo, lang)}</Text>
-                  <Text style={[s.muted, { textDecorationLine: "line-through" }]}>{money(shelf, lang)}</Text>
-                </View>
+              <View style={[s.row, { justifyContent: "flex-end" }]}>
+                {inBasket ? (
+                  <View style={[s.row, { gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }]}>
+                    <Text style={[s.muted, { color: C.green, fontWeight: "700" }]}>✓ {t("inBasketQty")}</Text>
+                    <Stepper
+                      value={inBasket.qty}
+                      label={qtyLabel(inBasket.qty, !!p?.byWeight, t, lang)}
+                      onMinus={() => st.setQty(key, Math.round((inBasket.qty - step) * 10) / 10)}
+                      onPlus={() => st.setQty(key, Math.round((inBasket.qty + step) * 10) / 10)}
+                    />
+                  </View>
+                ) : (
+                  pin && (
+                    <Pressable
+                      onPress={() => {
+                        track("deal_added", { group: gid, chain: city?.chains[ci]?.name, pct, product });
+                        st.addPinned(pin, gid);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t("pinAddA11y")}: ${product}`}
+                      style={({ pressed }) => [s.btn, { minHeight: 48, paddingVertical: 12, opacity: pressed ? 0.85 : 1 }]}
+                    >
+                      <Text style={[s.btnText, { fontSize: 16 }]}>+ {t("pinAdd")}</Text>
+                    </Pressable>
+                  )
+                )}
               </View>
-              <Pressable
-                onPress={() => {
-                  if (inBasket) return;
-                  track("deal_added", { group: gid, chain: city?.chains[ci]?.name, pct, product });
-                  st.addItem(gid);
-                }}
-                style={{
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  borderRadius: 999,
-                  backgroundColor: inBasket ? C.greenSoft : C.green,
-                }}
-              >
-                <Text style={{ color: inBasket ? C.green : "#fff", fontWeight: "700", fontSize: 13 }}>
-                  {inBasket ? `✓ ${t("added")}` : `+ ${t("add")}`}
-                </Text>
-              </Pressable>
             </View>
           );
         }}

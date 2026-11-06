@@ -119,8 +119,10 @@ export function normalizeSizes(rows) {
     const fixed = FIXED_GROUPS[r.productId];
     if (fixed) {
       const size = parseSize(r.product, fixed);
-      if (size == null || Math.abs(size - fixed.ref) / fixed.ref < 0.05) {
-        out.push(r); // стандартная упаковка
+      if (size == null) {
+        out.push(r); // размер не указан: считаем упаковку стандартной, но без цены пачки → в приложении «ориентировъчно»
+      } else if (Math.abs(size - fixed.ref) / fixed.ref < 0.05) {
+        out.push({ ...r, packPrice: r.price, packPromo: r.promo }); // стандартная упаковка, размер распознан
       } else {
         const k = fixed.ref / size;
         out.push({ ...r, packPrice: r.price, packPromo: r.promo, price: r.price * k, promo: r.promo != null ? r.promo * k : null });

@@ -92,13 +92,16 @@ export function Chip({ label, active, onPress }: { label: string; active?: boole
 
 export function Stepper({ value, label, onMinus, onPlus }: { value: number; label: string; onMinus: () => void; onPlus: () => void }) {
   const s = useS();
+  const { t } = useStore();
   return (
     <View style={s.stepper}>
-      <Pressable onPress={onMinus} hitSlop={8} style={s.stepBtn}>
+      <Pressable onPress={onMinus} hitSlop={8} style={s.stepBtn} accessibilityRole="button" accessibilityLabel={`${t("qtyLess")} (${label})`}>
         <Text style={s.stepSign}>−</Text>
       </Pressable>
-      <Text style={s.stepVal}>{label}</Text>
-      <Pressable onPress={onPlus} hitSlop={8} style={s.stepBtn}>
+      <Text style={s.stepVal} accessibilityLabel={label}>
+        {label}
+      </Text>
+      <Pressable onPress={onPlus} hitSlop={8} style={s.stepBtn} accessibilityRole="button" accessibilityLabel={`${t("qtyMore")} (${label})`}>
         <Text style={s.stepSign}>+</Text>
       </Pressable>
     </View>
