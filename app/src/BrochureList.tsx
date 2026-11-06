@@ -3,12 +3,13 @@
 import { useMemo, useState } from "react";
 import { FlatList, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { track } from "./lib/analytics";
-import { offerStatus, shortDate, todayIso, unitPriceLabel, visibleChains } from "./lib/brochures";
+import { kzpCheck, offerStatus, shortDate, todayIso, unitPriceLabel, visibleChains } from "./lib/brochures";
+import { productName, sizeLabel, splitName } from "./lib/i18n";
 import { itemKey, pinFromBrochure } from "./lib/pins";
 import { useStore } from "./lib/store";
 import type { BrochureOffer } from "./lib/types";
 import { chainColor, Icon, OfferCard } from "./components";
-import { C, CAT_EMOJI, Chip, productEmoji, qtyLabel, s } from "./ui";
+import { C, CAT_EMOJI, Chip, money, productEmoji, qtyLabel, s } from "./ui";
 
 const fold = (t: string) => t.toLowerCase().replace(/ъ/g, "а").replace(/ё/g, "е");
 
@@ -107,6 +108,17 @@ function OfferRow({ o, today }: { o: BrochureOffer; today: string }) {
   const perKg = !!pin?.perKg;
   const group = o.g ? st.productById.get(o.g) : undefined;
   const emoji = group ? productEmoji(group) : CAT_EMOJI[o.a ?? 0] ?? "🏷️";
+  // проверка по КЗП: та же сеть и город, цена за эталонную фасовку группы
+  const kc = kzpCheck(o, bro, st.city);
+  const refSize = group ? (group.byWeight ? { unit: "kg" as const, size: 1 } : group.ref ?? group.std) : undefined;
+  const ref = refSize ? t("perSize", { size: sizeLabel(refSize, t, lang) }) : "";
+  // «обикновено» — самая низкая обычная цена этой марки (или группы) в сети по КЗП, не цена того же артикула
+  const what = kc?.brand && o.b ? o.b : group ? splitName(productName(group, lang), lang)[0].toLowerCase() : "";
+  const check = kc
+    ? kc.real >= 5
+      ? { text: t("kzpGood", { chain, what, price: money(kc.regular, lang), ref, pct: kc.real }), tone: "good" as const }
+      : { text: t("kzpWeak", { chain, what, price: money(kc.regular, lang), ref }), tone: "weak" as const }
+    : undefined;
   return (
     <OfferCard
       emoji={emoji}
@@ -120,6 +132,7 @@ function OfferRow({ o, today }: { o: BrochureOffer; today: string }) {
       dateLabel={soon ? `${t("validFrom", { date: shortDate(o.f) })} · ${t("soon")}` : t("validTo", { date: shortDate(o.t) })}
       card={!!o.k}
       condition={o.w}
+      check={check}
       qty={inBasket?.qty}
       qtyLabel={inBasket ? qtyLabel(inBasket.qty, perKg, t, lang) : undefined}
       onAdd={

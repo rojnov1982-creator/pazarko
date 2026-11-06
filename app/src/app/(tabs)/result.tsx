@@ -242,7 +242,7 @@ export default function PlanScreen() {
                   : t("calculating")}
             </Text>
             {!basket.length && (
-              <Button title={t("toBasket")} onPress={() => router.push("/")} />
+              <Button title={t("toBasket")} onPress={() => router.push("/basket")} />
             )}
           </Card>
         </ScrollView>
@@ -289,7 +289,7 @@ export default function PlanScreen() {
           return {
             key: `${sp.chain}|${l.key}`,
             name: tx.group,
-            detail: [tx.what, tx.qtyText].filter(Boolean).join(" · "),
+            detail: [tx.what, tx.qtyText, tx.brochureNote].filter(Boolean).join(" · "),
             cost: l.cost,
             emoji: tx.emoji,
           };
