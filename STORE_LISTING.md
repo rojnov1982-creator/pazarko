@@ -1,7 +1,7 @@
 # Тексты для App Store и Google Play
 
 Вставляйте как есть. Лимиты символов проверены (в скобках — длина / лимит).
-Замените `<ВАШ-САЙТ>` на адрес GitHub Pages, например `https://username.github.io/pazarko`.
+Адрес сайта — GitHub Pages: `https://rojnov1982-creator.github.io/pazarko`. Разработчик / Developer: «Бизнес Ноутс» ЕООД / Business Notes EOOD, diginetgroup@gmail.com.
 
 ---
 
@@ -12,8 +12,8 @@
 | Название | **Пазарко** (BG) / **Pazarko** (EN) |
 | Категория | App Store: Покупки (Shopping), доп. — Еда и напитки · Google Play: Покупки (Shopping) |
 | Цена | Бесплатно |
-| Политика конфиденциальности | `<ВАШ-САЙТ>/privacy.html` |
-| Сайт / поддержка (Support URL) | `<ВАШ-САЙТ>/` |
+| Политика конфиденциальности | `https://rojnov1982-creator.github.io/pazarko/privacy.html` |
+| Сайт / поддержка (Support URL) | `https://rojnov1982-creator.github.io/pazarko/` |
 | Возрастной рейтинг | 4+ (Apple) · «Для всех» / PEGI 3 (Google) |
 | Bundle ID / package | `bg.pazarko.app` |
 
@@ -65,7 +65,7 @@
 Цените идват от отворените данни на Комисията за защита на потребителите (kolkostruva.bg), които търговските вериги подават всеки ден. Над 100 вида продукти от голямата потребителска кошница.
 
 БЕЗ РЕГИСТРАЦИЯ И РЕКЛАМИ
-Не събираме лични данни. Кошницата ви се пази само на телефона.
+Не събираме лични данни. Кошницата ви се пази само на телефона, а анонимна статистика се изпраща само ако се съгласите.
 
 Пазарко не е свързан с КЗП или с търговските вериги. Цената в конкретен магазин може да се различава от показаната.
 ```
@@ -123,7 +123,7 @@ TRUSTED DATA
 Prices come from the open data of Bulgaria's Consumer Protection Commission (kolkostruva.bg), reported daily by the retail chains. More than 100 product types from the national consumer basket.
 
 NO SIGN-UP, NO ADS
-We collect no personal data. Your basket stays on your phone.
+We collect no personal data. Your basket stays on your phone, and anonymous statistics are sent only if you agree.
 
 Pazarko is not affiliated with the Consumer Protection Commission or any retail chain. Prices in a specific store may differ.
 ```
@@ -137,13 +137,21 @@ First release of Pazarko: optimal basket, chain comparison, promotions, Bulgaria
 
 ## Анкеты о приватности
 
-**Apple — App Privacy:** «Data Not Collected» (данные не собираются). Геолокация используется только на устройстве и никуда не отправляется — по правилам Apple это не считается сбором данных.
+С версии с аналитикой (анонимная статистика PostHog, только по согласию — `app/src/lib/analytics.ts`).
+Если сборка без ключа PostHog (`expo.extra.analytics.key` пустой), статистика не отправляется — тогда верны старые ответы «Data Not Collected» / «Нет».
+Геолокация в обоих случаях используется только на устройстве и не передаётся — это не «сбор».
+
+**Apple — App Privacy:**
+- Usage Data → **Product Interaction** — собирается; Not linked to the user; Not used for tracking; цель — **Analytics**
+- Identifiers → **Device ID** (случайный ID установки, не IDFA/IDFV) — собирается; Not linked; Not used for tracking; цель — **Analytics**
+- Всё остальное — не собирается. App Tracking Transparency не нужен (нет отслеживания между приложениями).
 
 **Google Play — Data safety:**
-- Собирает ли приложение данные пользователей? — **Нет** (геолокация обрабатывается только на устройстве и не передаётся — по правилам Google это не «сбор»)
-- Передаёт ли данные третьим лицам? — **Нет**
+- Собирает ли приложение данные? — **Да**: App activity → *App interactions*; Device or other IDs → *Device or other IDs*
+- Обработка эфемерная? — Нет · Сбор обязателен? — **Нет, пользователь может отказаться** (optional) · Цель — **Analytics**
+- Передаёт ли данные третьим лицам? — **Нет** (PostHog — обработчик/service provider, это не «sharing» по правилам Google)
 - Шифрование при передаче — **Да** (HTTPS)
-- Можно ли запросить удаление данных? — данные не собираются; всё хранится на устройстве
+- Можно ли запросить удаление данных? — **Да**: выключить статистику в настройках (ID удаляется) или написать на diginetgroup@gmail.com
 
 **Google Play — прочее:** реклама — нет · целевая аудитория — 18+ (не для детей, чтобы не попадать под Families Policy) · новостное приложение — нет · госорган — нет (укажите, что приложение не связано с КЗП).
 

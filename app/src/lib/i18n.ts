@@ -92,6 +92,15 @@ const bg = {
   aboutData:
     "Цените се публикуват от КЗП на kolkostruva.bg (101 групи продукти от голямата потребителска кошница). Веригите с оборот над 10 млн. лв. са длъжни да подават цени всеки ден.",
   demoBanner: "Демо режим: веригите и цените са измислени. Свържете данни от kolkostruva.bg — вижте README.",
+  privacy: "Поверителност",
+  analytics: "Анонимна статистика",
+  analyticsSub: "Помага ни да разберем кои продукти, вериги и функции се използват. Без име, имейл и местоположение.",
+  analyticsAskTitle: "Помогнете ни да подобрим Пазарко",
+  analyticsAskText:
+    "Може ли да събираме анонимна статистика за използването (кои продукти и вериги се търсят)? Без име, имейл и местоположение. Можете да промените избора си в Настройки.",
+  analyticsYes: "Да, съгласен съм",
+  analyticsNo: "Не, благодаря",
+  privacyPolicy: "Политика за поверителност",
   forSize: "цена за {size}",
   pack: "опаковка {price}",
   onlyGrocery: "Само супермаркети",
@@ -241,6 +250,15 @@ const en: Dict = {
   aboutData:
     "Prices are published by Bulgaria's Consumer Protection Commission (CPC) on kolkostruva.bg — 101 product groups from the large consumer basket. Chains with turnover above BGN 10 million must report prices daily.",
   demoBanner: "Demo mode: chains and prices are fictional. Connect kolkostruva.bg data — see README.",
+  privacy: "Privacy",
+  analytics: "Anonymous statistics",
+  analyticsSub: "Helps us see which products, chains and features are used. No name, email or location.",
+  analyticsAskTitle: "Help us improve Pazarko",
+  analyticsAskText:
+    "May we collect anonymous usage statistics (which products and chains people look for)? No name, email or location. You can change this anytime in Settings.",
+  analyticsYes: "Yes, I agree",
+  analyticsNo: "No, thanks",
+  privacyPolicy: "Privacy policy",
   forSize: "price per {size}",
   pack: "pack {price}",
   onlyGrocery: "Supermarkets only",

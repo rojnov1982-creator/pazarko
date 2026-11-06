@@ -1,7 +1,8 @@
-import { router } from "expo-router";
-import { useMemo } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useMemo } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { track } from "../lib/analytics";
 import { IS_DEMO } from "../lib/data";
 import { brandLabel, productName, splitName } from "../lib/i18n";
 import { optimizeBasket } from "../lib/optimize";
@@ -32,6 +33,34 @@ export default function ResultScreen() {
       excludedChains: [...excluded],
     });
   }, [city, basket, settings, maxStores, excluded]);
+
+  // Статистика: итог плана, когда экран открыт (с паузой, чтобы не писать каждое нажатие)
+  const planKey = result ? `${basket.length}|${maxStores}|${settings.usePromo}|${result.plan.total}|${st.area.mode}` : "";
+  useFocusEffect(
+    useCallback(() => {
+      if (!result || !city) return;
+      const id = setTimeout(() => {
+        const name = (i: number) => city.chains[i]?.name ?? "?";
+        track("plan_viewed", {
+          items: basket.length,
+          brand_items: basket.filter((b) => b.brand).length,
+          max_stores: maxStores,
+          use_promo: settings.usePromo,
+          area_mode: st.area.mode,
+          plan_stores: result.plan.stores.length,
+          plan_chains: result.plan.stores.map((x) => name(x.chain)),
+          promo_lines: result.plan.stores.reduce((n, x) => n + x.lines.filter((l) => l.offer.isPromo).length, 0),
+          missing: result.plan.missing.length,
+          total: Math.round(result.plan.total * 100) / 100,
+          best_single_chain: result.bestSingle ? name(result.bestSingle.chain) : undefined,
+          savings: Math.round(result.savings * 100) / 100,
+          savings_pct: result.savingsPct,
+        });
+      }, 1500);
+      return () => clearTimeout(id);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [planKey]),
+  );
 
   if (!city || !result) {
     return (
@@ -185,6 +214,13 @@ export default function ResultScreen() {
                           // переключаемся на марку из оферты (если узнали её), иначе — на «любую марку»
                           const g = city.brands?.[String(l.productId)] ?? {};
                           const b = Object.keys(g).find((k) => g[k].some((t) => t[5] === deal.product || t[2] === deal.product));
+                          track("superdeal_taken", {
+                            group: l.productId,
+                            from_brand: brand,
+                            to_brand: b ?? "any",
+                            chain: city.chains[deal.chain]?.name,
+                            pct: Math.round((1 - deal.price / l.offer.price) * 100),
+                          });
                           st.setBrand(l.productId, b);
                         }}
                         style={{ alignSelf: "flex-start" }}

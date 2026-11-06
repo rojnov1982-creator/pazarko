@@ -54,7 +54,11 @@
     },
     "extra": {
       "dataUrl": "https://rojnov1982-creator.github.io/pazarko",
-      "premiumEnabled": false
+      "premiumEnabled": false,
+      "analytics": {
+        "key": "",
+        "host": "https://eu.i.posthog.com"
+      }
     },
     "locales": {
       "bg": "./locales/bg.json",

@@ -1,7 +1,10 @@
+import { usePathname } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
 import { StatusBar } from "expo-status-bar";
-import { Text } from "react-native";
+import { useEffect } from "react";
+import { AppState, Text } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { flush, track } from "../lib/analytics";
 import { StoreProvider, useStore } from "../lib/store";
 import { Paywall } from "../Paywall";
 import { C } from "../ui";
@@ -12,6 +15,14 @@ const icon = (emoji: string) => ({ focused }: { focused: boolean }) => (
 
 function AppTabs() {
   const { basket, t } = useStore();
+  const pathname = usePathname();
+  useEffect(() => {
+    track("$screen", { $screen_name: pathname === "/" ? "basket" : pathname.replace(/^\//, "") });
+  }, [pathname]);
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (s) => s !== "active" && flush());
+    return () => sub.remove();
+  }, []);
   return (
     <Tabs
       screenOptions={{

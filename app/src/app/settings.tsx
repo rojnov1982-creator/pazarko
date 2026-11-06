@@ -1,7 +1,9 @@
-import { Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ANALYTICS_AVAILABLE, track } from "../lib/analytics";
 import { DATA_URL, IS_DEMO } from "../lib/data";
 import { LANGS } from "../lib/i18n";
+import { PREMIUM_ENABLED } from "../lib/premium";
 import { useStore } from "../lib/store";
 import { C, Card, Chip, H, money, s, Stepper } from "../ui";
 
@@ -33,6 +35,7 @@ export default function SettingsScreen() {
           ))}
         </View>
 
+        {PREMIUM_ENABLED && (
         <Pressable onPress={st.openPaywall}>
           <Card style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: C.green, borderColor: C.green, marginTop: 8 }}>
             <Text style={{ fontSize: 26 }}>✨</Text>
@@ -43,6 +46,7 @@ export default function SettingsScreen() {
             <Text style={{ color: "#fff", fontWeight: "700" }}>→</Text>
           </Card>
         </Pressable>
+        )}
 
         <H style={{ marginTop: 6 }}>{t("calc")}</H>
         <Card style={{ gap: 12 }}>
@@ -87,13 +91,32 @@ export default function SettingsScreen() {
                 (c.kind === "pharmacy" ? ` · ${t("kindPharmacy")}` : c.kind === "other" ? ` · ${t("kindOther")}` : "")
               }
               value={!cfg.excludedChains.includes(c.eik)}
-              onChange={(v) =>
+              onChange={(v) => {
+                track(v ? "chain_included" : "chain_excluded", { chain: c.name, eik: c.eik });
                 st.updateSettings({
                   excludedChains: v ? cfg.excludedChains.filter((e) => e !== c.eik) : [...cfg.excludedChains, c.eik],
-                })
-              }
+                });
+              }}
             />
           ))}
+        </Card>
+
+        <H style={{ marginTop: 6 }}>{t("privacy")}</H>
+        <Card style={{ gap: 12 }}>
+          {ANALYTICS_AVAILABLE && (
+            <>
+              <Toggle
+                title={t("analytics")}
+                sub={t("analyticsSub")}
+                value={cfg.analytics === true}
+                onChange={(v) => st.updateSettings({ analytics: v })}
+              />
+              <View style={s.divider} />
+            </>
+          )}
+          <Pressable onPress={() => Linking.openURL("https://rojnov1982-creator.github.io/pazarko/privacy.html")}>
+            <Text style={{ color: C.green, fontWeight: "600" }}>{t("privacyPolicy")} →</Text>
+          </Pressable>
         </Card>
 
         <H style={{ marginTop: 6 }}>{t("data")}</H>

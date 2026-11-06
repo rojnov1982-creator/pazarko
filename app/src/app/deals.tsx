@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { track } from "../lib/analytics";
 import { IS_DEMO } from "../lib/data";
 import { excludedIndexes } from "../lib/prices";
 import { useStore } from "../lib/store";
@@ -57,7 +58,11 @@ export default function DealsScreen() {
                 </View>
               </View>
               <Pressable
-                onPress={() => !inBasket && st.addItem(gid)}
+                onPress={() => {
+                  if (inBasket) return;
+                  track("deal_added", { group: gid, chain: city?.chains[ci]?.name, pct, product });
+                  st.addItem(gid);
+                }}
                 style={{
                   paddingHorizontal: 12,
                   paddingVertical: 8,

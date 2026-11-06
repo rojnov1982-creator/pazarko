@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { setAnalyticsEnabled, setCommonProps, track } from "./analytics";
 import { buildAreaCity, storesInArea } from "./area";
 import { loadCity, loadIndex, loadProducts, loadStoreFile } from "./data";
 import { deviceLang, Lang, makeT, T, TKey } from "./i18n";
@@ -21,6 +22,8 @@ export interface Settings {
   /** район покупок по городам (ЕКАТТЕ → район) */
   areas: Record<string, Area>;
   lang: Lang;
+  /** согласие на анонимную статистику: null — ещё не спрашивали */
+  analytics: boolean | null;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -34,7 +37,11 @@ const DEFAULT_SETTINGS: Settings = {
   isPremium: false,
   areas: {},
   lang: "bg",
+  analytics: null,
 };
+
+/** настройки, изменения которых пишем в статистику */
+const TRACKED_SETTINGS = ["maxStores", "usePromo", "extraStoreCost", "onlyGrocery", "showDeals", "hideMedicines", "lang"] as const;
 
 export const PRESETS: { id: string; title: TKey; emoji: string; items: BasketItem[] }[] = [
   {
@@ -90,7 +97,7 @@ interface Ctx {
   addItem: (productId: number) => void;
   setQty: (productId: number, qty: number) => void;
   clearBasket: () => void;
-  loadPreset: (items: BasketItem[]) => void;
+  loadPreset: (items: BasketItem[], presetId?: string) => void;
   updateSettings: (patch: Partial<Settings>) => void;
   qtyStep: (productId: number) => number;
   lang: Lang;
@@ -192,6 +199,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(KEY, JSON.stringify({ ekatte, basket, settings })).catch(() => {});
   }, [ready, ekatte, basket, settings]);
 
+  // Статистика: включаем по согласию, общие свойства, событие запуска
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!ready) return;
+    setAnalyticsEnabled(settings.analytics === true).then(() => {
+      if (settings.analytics === true && !opened.current) {
+        opened.current = true;
+        track("app_open", { basket_items: basket.length, area_mode: area.mode });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, settings.analytics]);
+  const cityName = index?.cities.find((c) => c.ekatte === ekatte)?.name;
+  useEffect(() => {
+    setCommonProps({ lang: settings.lang, city: ekatte ?? undefined, city_name: cityName, prices_date: index?.date });
+  }, [settings.lang, ekatte, cityName, index?.date]);
+
   const productById = useMemo(() => new Map((products?.products ?? []).map((p) => [p.id, p])), [products]);
   const t = useMemo(() => makeT(settings.lang), [settings.lang]);
   const qtyStep = useCallback((id: number) => (productById.get(id)?.byWeight ? 0.5 : 1), [productById]);
@@ -206,29 +230,54 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     baseCity: city,
     cityLoading,
     area,
-    setArea: (a) => ekatte && setSettings((st) => ({ ...st, areas: { ...st.areas, [ekatte]: a } })),
+    setArea: (a) => {
+      if (!ekatte) return;
+      setSettings((st) => ({ ...st, areas: { ...st.areas, [ekatte]: a } }));
+      track("area_changed", {
+        mode: a.mode,
+        radius_km: a.mode === "near" ? a.radiusKm : undefined,
+        stores: a.mode === "stores" ? a.ids.length : undefined,
+      });
+    },
     areaStoreCount,
     ekatte,
     basket,
     settings,
-    selectCity: setEkatte,
-    addItem: (productId) =>
+    selectCity: (e) => {
+      setEkatte(e);
+      track("city_selected", { city: e, city_name: index?.cities.find((c) => c.ekatte === e)?.name });
+    },
+    addItem: (productId) => {
+      if (!basket.some((x) => x.productId === productId)) {
+        const p = productById.get(productId);
+        track("item_added", { group: productId, group_name: p?.bg, category: p?.cat });
+      }
       setBasket((b) =>
         b.some((x) => x.productId === productId)
           ? b.map((x) => (x.productId === productId ? { ...x, qty: x.qty + qtyStep(productId) } : x))
           : [...b, { productId, qty: qtyStep(productId) }],
-      ),
+      );
+    },
     setQty: (productId, qty) =>
       setBasket((b) =>
         qty <= 0 ? b.filter((x) => x.productId !== productId) : b.map((x) => (x.productId === productId ? { ...x, qty } : x)),
       ),
     clearBasket: () => setBasket([]),
-    loadPreset: (items) => setBasket(items.map((i) => ({ ...i }))),
-    updateSettings: (patch) => setSettings((s) => ({ ...s, ...patch })),
+    loadPreset: (items, presetId) => {
+      setBasket(items.map((i) => ({ ...i })));
+      track("preset_loaded", { preset: presetId, items: items.length });
+    },
+    updateSettings: (patch) => {
+      for (const k of TRACKED_SETTINGS) if (k in patch && patch[k] !== settings[k]) track("setting_changed", { key: k, value: patch[k] });
+      setSettings((s) => ({ ...s, ...patch }));
+    },
     qtyStep,
     lang: settings.lang,
     t,
-    setBrand: (productId, brand) => setBasket((b) => b.map((x) => (x.productId === productId ? { ...x, brand } : x))),
+    setBrand: (productId, brand) => {
+      track("brand_selected", { group: productId, group_name: productById.get(productId)?.bg, brand: brand ?? "any" });
+      setBasket((b) => b.map((x) => (x.productId === productId ? { ...x, brand } : x)));
+    },
     can: (f) => canUse(f, settings.isPremium),
     paywallOpen,
     openPaywall: () => setPaywallOpen(true),

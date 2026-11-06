@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ANALYTICS_AVAILABLE } from "../lib/analytics";
 import { IS_DEMO } from "../lib/data";
 import { brandLabel, OWN_BRAND, productDetail, productName, splitName } from "../lib/i18n";
 import { brandsInCity, cheapest, excludedIndexes } from "../lib/prices";
@@ -69,6 +70,18 @@ export default function BasketScreen() {
         </Pressable>
         {st.area.mode !== "city" && st.areaStoreCount === 0 && <Text style={{ color: C.promo }}>{t("noStoresInArea")}</Text>}
         {IS_DEMO && <DemoBanner />}
+        {ANALYTICS_AVAILABLE && st.settings.analytics === null && (
+          <Card style={{ gap: 8, backgroundColor: C.greenSoft, borderColor: C.greenSoft }}>
+            <Text style={[s.body, { fontWeight: "700" }]}>📊 {t("analyticsAskTitle")}</Text>
+            <Text style={s.muted}>{t("analyticsAskText")}</Text>
+            <View style={[s.row, { gap: 8, marginTop: 4 }]}>
+              <Button title={t("analyticsYes")} onPress={() => st.updateSettings({ analytics: true })} style={{ flex: 1 }} />
+              <Pressable onPress={() => st.updateSettings({ analytics: false })} hitSlop={8} style={{ paddingHorizontal: 12 }}>
+                <Text style={{ color: C.muted, fontWeight: "600" }}>{t("analyticsNo")}</Text>
+              </Pressable>
+            </View>
+          </Card>
+        )}
         {st.error && (
           <Text style={{ color: C.promo }}>
             {t("error")}: {st.error}
@@ -84,7 +97,7 @@ export default function BasketScreen() {
             </Card>
             <H style={{ marginTop: 8 }}>{t("readyBaskets")}</H>
             {PRESETS.map((p) => (
-              <Pressable key={p.id} onPress={() => st.loadPreset(p.items)}>
+              <Pressable key={p.id} onPress={() => st.loadPreset(p.items, p.id)}>
                 <Card style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                   <Text style={{ fontSize: 28 }}>{p.emoji}</Text>
                   <View style={{ flex: 1 }}>
