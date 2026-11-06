@@ -14,17 +14,29 @@ import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { IS_DEMO } from "./data";
 
-type Props = Record<string, string | number | boolean | null | undefined | string[]>;
+type Props = Record<
+  string,
+  string | number | boolean | null | undefined | string[]
+>;
 
-const cfg = (Constants.expoConfig?.extra as { analytics?: { key?: string; host?: string } } | undefined)?.analytics ?? {};
+const cfg =
+  (
+    Constants.expoConfig?.extra as
+      { analytics?: { key?: string; host?: string } } | undefined
+  )?.analytics ?? {};
 const API_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY || cfg.key || "";
-const HOST = (process.env.EXPO_PUBLIC_POSTHOG_HOST || cfg.host || "https://eu.i.posthog.com").replace(/\/$/, "");
+const HOST = (
+  process.env.EXPO_PUBLIC_POSTHOG_HOST ||
+  cfg.host ||
+  "https://eu.i.posthog.com"
+).replace(/\/$/, "");
 const ID_KEY = "pazarko:aid";
 
 /** статистика настроена в сборке (есть ключ и это не демо-режим) */
 export const ANALYTICS_AVAILABLE = !!API_KEY && !IS_DEMO;
 
-const rnd = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+const rnd = () =>
+  Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 let enabled = false;
 let distinctId = "";

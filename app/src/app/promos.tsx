@@ -80,6 +80,7 @@ export default function PromosScreen() {
                 .join(" · "),
               cost: cost(b),
               emoji: emojiOf(b),
+              card: !!b.pin.card,
             })),
           };
         })

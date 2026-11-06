@@ -32,6 +32,7 @@ export default function RootLayout() {
           <Stack.Screen name="settings" />
           <Stack.Screen name="shopping" />
           <Stack.Screen name="promos" />
+          <Stack.Screen name="favorites" />
         </Stack>
         <Paywall />
       </StoreProvider>

@@ -33,13 +33,16 @@ const bg = {
   weeklyAdded: "Всички са в кошницата",
   weeklyShow: "Виж продуктите",
   weeklyHide: "Скрий",
-  weeklyNote: "По една опаковка (или 1 кг) от най-добрите акции в {stores}. Излишното махаш в „Моите акции“.",
+  weeklyNote:
+    "По една опаковка (или 1 кг) от най-добрите акции в {stores}. Излишното махаш в „Моите акции“.",
   myPromos: "Моите акции",
   myPromosBar: "Моите акции: {n} · {amount}",
   myPromosCount: "{n} акции в списъка",
   myPromosSave: "Спестяваш {amount} спрямо обичайните цени",
-  myPromosEmpty: "Още няма избрани акции. В брошурите натисни „Добави тази оферта“ или „Добави всички“ в „Кошница на седмицата“.",
-  myPromosNote: "Само акциите, които си избрал — без останалите продукти от кошницата.",
+  myPromosEmpty:
+    "Още няма избрани акции. В брошурите натисни „Добави тази оферта“ или „Добави всички“ в „Кошница на седмицата“.",
+  myPromosNote:
+    "Само акциите, които си избрал — без останалите продукти от кошницата.",
   myPromosShop: "Пазарувай само акциите",
   myPromosOff: "Не се смята днес",
   bcatFood: "Храни",
@@ -61,13 +64,21 @@ const bg = {
   bcatHomeS: "Химия",
   bcatOtherS: "Дом",
   bcatAll: "Всичко",
-  kzpGood: "По КЗП в {chain} {what} обикновено е от {price} {ref} — тук с {pct}% по-евтино.",
+  kzpGood:
+    "По КЗП в {chain} {what} обикновено е от {price} {ref} — тук с {pct}% по-евтино.",
   kzpWeak: "По КЗП в {chain} {what} и без акция се намира от {price} {ref}.",
   perSize: "за {size}",
-  brochuresHintMain: "Акциите от седмичните брошури в {city}. Сравняваме ги с цените по КЗП и ги смятаме в плана.",
+  brochuresHintMain:
+    "Акциите от седмичните брошури в {city}. Сравняваме ги с цените по КЗП и ги смятаме в плана.",
   planTitle: "Твоят план",
   savingShort: "Спестяваш {amount}",
   opt1: "Един магазин",
+  storesQuestion: "В колко магазина ще пазаруваш?",
+  seg1: "В един",
+  seg2: "До 2",
+  seg3: "До 3",
+  oneStoreRank: "Къде да купиш всичко",
+  bestHere: "най-изгодно",
   opt2: "Два магазина",
   opt3: "Три магазина",
   optN: "{n} магазина",
@@ -127,6 +138,9 @@ const bg = {
   // --- план ---
   planTotal: "Обща сума",
   planComplete: "Всички {total} продукта",
+  plusNoPrice: "+{n} без цена",
+  onlyNoPrice: "{n} продукта без цена — списъкът е готов",
+  onlyNoPrice1: "1 продукт без цена — списъкът е готов",
   planIncomplete: "{n} от {total} продукта — непълна кошница",
   planStores: "{n} магазина",
   planStore1: "1 магазин",
@@ -136,19 +150,23 @@ const bg = {
   optAlt: "Друг вариант",
   optIncomplete: "непълна",
   optSelected: "Избрано",
-  saveExplain: "Спестявате {amount} спрямо пазаруване само в {chain} — най-евтиният магазин, в който има всичко.",
-  saveExplainPartial: "Спестявате {amount} спрямо {chain} за продуктите, които има и там.",
+  saveExplain:
+    "Спестявате {amount} спрямо пазаруване само в {chain} — най-евтиният магазин, в който има всичко.",
+  saveExplainPartial:
+    "Спестявате {amount} спрямо {chain} за продуктите, които има и там.",
   saveNone: "Да пазарувате в един магазин излиза толкова, колкото и в няколко.",
   extraStoreSaves: "Вторият магазин спестява {amount}.",
   extraStoresSave: "Последният добавен магазин спестява {amount}.",
-  storeCostNote: "Заради „цена за още магазин“ ({cost}) планът е с по-малко магазини: само стоките биха били {total} в {n} магазина.",
+  storeCostNote:
+    "Заради „цена за още магазин“ ({cost}) планът е с по-малко магазини: само стоките биха били {total} в {n} магазина.",
   shoppingList: "Списък за пазаруване",
   buyAt: "В {chain}",
   storeTotal: "Общо в магазина",
   packsOf: "{packs} × {size}",
   packOne: "опаковка {size}",
   approxLine: "размерът на опаковката не е известен — сумата е ориентировъчна",
-  approxPlan: "Част от сумите са ориентировъчни: размерът на някои опаковки не е известен.",
+  approxPlan:
+    "Част от сумите са ориентировъчни: размерът на някои опаковки не е известен.",
   missingTitle: "Липсват в плана",
   compareTitle: "Сравнение по магазини",
   compareFull: "С всички продукти",
@@ -179,7 +197,8 @@ const bg = {
   findBest: "Къде е най-евтино",
   howTitle: "Как работи",
   easyMode: "Лесен режим",
-  easyModeSub: "Едри букви и само най-важното: продукти, количество и къде е най-евтино.",
+  easyModeSub:
+    "Едри букви и само най-важното: продукти, количество и къде е най-евтино.",
   easyAskTitle: "Как да изглежда Пазарко?",
   easyAskEasy: "Лесно — едри букви",
   easyAskEasySub: "Само най-важното",
@@ -194,7 +213,8 @@ const bg = {
   optionShow: "Покажи какво да купя ▾",
   optionHide: "Скрий ▴",
   easySaving: "Спестявате {amount} спрямо пазаруване само в {chain}.",
-  easyMoreHint: "Още възможности (марки, брошури, магазини наблизо) — изключете «Лесен режим» по-горе.",
+  easyMoreHint:
+    "Още възможности (марки, брошури, магазини наблизо) — изключете «Лесен режим» по-горе.",
   brandShort: "Марка",
   how1: "Изберете какво купувате — хляб, мляко, сирене…",
   how2: "Натиснете зеления бутон «Къде е най-евтино».",
@@ -215,17 +235,20 @@ const bg = {
   nothingFound: "Нищо не е намерено",
   noData: "няма данни",
   // Спестяване
-  emptyBasket: "Кошницата е празна — добавете продукти и тук ще се появи най-добрият план за пазаруване.",
+  emptyBasket:
+    "Кошницата е празна — добавете продукти и тук ще се появи най-добрият план за пазаруване.",
   toBasket: "Към кошницата",
   howManyStores: "Колко магазина сте готови да обиколите",
   oneStore: "1 магазин",
   anyNumber: "Без ограничение",
   optimalBasket: "Оптимална кошница",
   storesCount: "{n} маг.",
-  savingsText: "Спестявате {amount} ({pct}%) спрямо пазаруване само в {chain} — най-изгодния единичен магазин (за същите продукти).",
+  savingsText:
+    "Спестявате {amount} ({pct}%) спрямо пазаруване само в {chain} — най-изгодния единичен магазин (за същите продукти).",
   allInOne: "Най-изгодно е да купите всичко на едно място{chain}.",
   notFound: "Не намерихме в града: {list}",
-  idealHint: "Без ограничение на магазините би излязло {total} — още {extra} спестяване, но в {n} магазина.",
+  idealHint:
+    "Без ограничение на магазините би излязло {total} — още {extra} спестяване, но в {n} магазина.",
   whatWhere: "Какво къде да купите",
   itemsAndStores: "{items} прод. · {stores} маг. в града",
   inStore: "в магазин: {store}",
@@ -244,15 +267,18 @@ const bg = {
   usePromo: "Отчитай промоции",
   usePromoSub: "Използвай промо цените, ако са по-ниски",
   storeCost: "Цена на допълнителен магазин",
-  storeCostSub: "Колко струва за вас пътят до още един магазин. Планът няма да се раздробява заради стотинки.",
+  storeCostSub:
+    "Колко струва за вас пътят до още един магазин. Планът няма да се раздробява заради стотинки.",
   hideMeds: "Скрий лекарствата",
   hideMedsSub: "Аптечните групи от списъка на КЗП",
   metro: "Metro (нужна е карта)",
-  metroSub: "Metro е магазин за фирми с клиентска карта. Включете, ако имате карта Metro.",
+  metroSub:
+    "Metro е магазин за фирми с клиентска карта. Включете, ако имате карта Metro.",
   metroCard: "нужна е карта",
   language: "Език",
   chainsInCityTitle: "Вериги в града",
-  chainsHint: "Изключете веригите, в които не пазарувате — няма да влизат в плана.",
+  chainsHint:
+    "Изключете веригите, в които не пазарувате — няма да влизат в плана.",
   chainSub: "{n} маг. · ЕИК {eik}",
   data: "Данни",
   source: "Източник: {source}",
@@ -261,10 +287,12 @@ const bg = {
   server: "Сървър: {url}",
   aboutData:
     "Цените се публикуват от КЗП на kolkostruva.bg (101 групи продукти от голямата потребителска кошница). Веригите с оборот над 10 млн. лв. са длъжни да подават цени всеки ден.",
-  demoBanner: "Демо режим: веригите и цените са измислени. Свържете данни от kolkostruva.bg — вижте README.",
+  demoBanner:
+    "Демо режим: веригите и цените са измислени. Свържете данни от kolkostruva.bg — вижте README.",
   privacy: "Поверителност",
   analytics: "Анонимна статистика",
-  analyticsSub: "Помага ни да разберем кои продукти, вериги и функции се използват. Без име, имейл и местоположение.",
+  analyticsSub:
+    "Помага ни да разберем кои продукти, вериги и функции се използват. Без име, имейл и местоположение.",
   analyticsAskTitle: "Помогнете ни да подобрим Пазарко",
   analyticsAskText:
     "Може ли да събираме анонимна статистика за използването (кои продукти и вериги се търсят)? Без име, имейл и местоположение. Можете да промените избора си в Настройки.",
@@ -282,14 +310,49 @@ const bg = {
   unitMl: "мл",
   unitL: "л",
   unitPcs: "бр.",
-  sizeNote: "За продукти в различни опаковки цената е преизчислена за една и съща опаковка (напр. 400 г), за да е честно сравнението.",
+  sizeNote:
+    "За продукти в различни опаковки цената е преизчислена за една и съща опаковка (напр. 400 г), за да е честно сравнението.",
   tabDeals: "Оферти",
   dealsTitle: "Супер оферти",
-  dealsHint: "Най-големите отстъпки днес в {city}. Цените са за опаковка на рафта.",
+  dealsHint:
+    "Най-големите отстъпки днес в {city}. Цените са за опаковка на рафта.",
   dealsEmpty: "Днес няма големи отстъпки в този град.",
   dealStores: "{n} маг.",
   dealsToday: "Днес",
   dealsBrochures: "Брошури",
+  favTitle: "Любими продукти",
+  favIntro:
+    "Продуктите, които купуваш винаги. Всяка седмица ги търсим в брошурите, а когато не са в акция, остават в списъка ти с обичайната цена по КЗП.",
+  favPlaceholder: "напр. Луканка Орехите Чардака",
+  favAdd: "Добави",
+  favInList: "В списъка всяка седмица",
+  favOnSale: "📰 В акция: {chain} · {price} (−{pct}%) · до {date}",
+  favNoSale: "Тази седмица не е в брошурите",
+  favKzp: "Без акция: по КЗП от {price} в {chain}",
+  favNoKzp:
+    "Точно този продукт го няма в данните на КЗП — когато не е в акция, остава в списъка без цена",
+  favEmpty:
+    "Още нямаш любими. Напиши продукт и марка — или натисни „♡ Следи“ на оферта в брошурите.",
+  favCardTitle: "Любими в акция",
+  favCardNone:
+    "Любимите ти не са в брошурите тази седмица — остават в списъка с обичайната цена.",
+  favCardAll: "Всички любими",
+  favFollow: "Следи",
+  favFollowing: "Следиш",
+  favPromo: "Следи любимите си продукти",
+  favBadge: "Любим",
+  favOnlyDeal: "Цена — когато е в брошурите или в КЗП",
+  favCount: "Любими продукти ({n})",
+  customPlaceholder: "Свой продукт, напр. тоалетна хартия",
+  customNoPrice: "Без цена — добавено от теб",
+  unpricedTitle: "Без цена в плана",
+  unpricedNote: "Купи ги в магазина, където пазаруваш.",
+  otherStore: "Други",
+  share: "Сподели",
+  shareTitle: "Списък за пазаруване — Пазарко",
+  shareTotal: "Общо ≈ {amount}",
+  mapOpen: "Карта",
+  cardReminder: "💳 Вземи картата на {chain} — {n} от акциите са с карта",
   brochuresHint: "Предложения от седмичните брошури на веригите в {city}.",
   brochuresSearch: "Търсене в брошурите",
   onlyFood: "Храни и напитки",
@@ -310,14 +373,16 @@ const bg = {
   chooseBrand: "Марка",
   brandFrom: "от {price} · {n} вер.",
   superDeal: "Супер оферта",
-  superDealText: "{product} в {chain} — {price} ({pct}% по-евтино от избраната марка)",
+  superDealText:
+    "{product} в {chain} — {price} ({pct}% по-евтино от избраната марка)",
   takeIt: "Вземи тази",
   showDeals: "Подсказвай супер оферти",
   showDealsSub: "Дори ако марката не е от любимите ви",
   premium: "Пазарко Premium",
   premiumSub: "Още повече спестявания и удобство",
   premiumSoon: "Скоро",
-  premiumFree: "Безплатно завинаги: кошница, план в 1–2 магазина, сравнение на веригите, промоции и супер оферти.",
+  premiumFree:
+    "Безплатно завинаги: кошница, план в 1–2 магазина, сравнение на веригите, промоции и супер оферти.",
   premiumLocked: "Функция на Premium",
   close: "Затвори",
   inDev: "в разработка",
@@ -340,11 +405,13 @@ const bg = {
   storesFound: "{n} магазина в района",
   storesSelected: "Избрани магазини: {n}",
   searchStores: "Търсене: улица, квартал, верига…",
-  noGeoYet: "Координатите на магазините все още се подготвят. Дотогава изберете „Моите магазини“.",
+  noGeoYet:
+    "Координатите на магазините все още се подготвят. Дотогава изберете „Моите магазини“.",
   locDenied: "Няма разрешение за местоположение. Изберете квартал.",
   locating: "Определяне на местоположението…",
   myLocation: "моето местоположение",
-  noStoresInArea: "Няма магазини в този район — увеличете радиуса или изберете други магазини.",
+  noStoresInArea:
+    "Няма магазини в този район — увеличете радиуса или изберете други магазини.",
   areaDemo: "В демо режим изборът на магазини не е наличен.",
   areaHint: "Планът ще се смята само по тези магазини.",
   osmCredit: "Местоположения © участници в OpenStreetMap",
@@ -352,7 +419,8 @@ const bg = {
   maxStores: "До {n} магазина",
   notFoundArea: "Няма в избраните магазини: {list}",
   forItems: "за {n} от {total} продукта",
-  coverageHint: "С толкова магазина липсват {n} продукта, затова сумата е по-малка. Изберете {k}+ магазина, за да намерите всичко.",
+  coverageHint:
+    "С толкова магазина липсват {n} продукта, затова сумата е по-малка. Изберете {k}+ магазина, за да намерите всичко.",
 };
 
 type Dict = typeof bg;
@@ -379,13 +447,16 @@ const en: Dict = {
   weeklyAdded: "All are in your basket",
   weeklyShow: "See products",
   weeklyHide: "Hide",
-  weeklyNote: "One pack (or 1 kg) of the best deals at {stores}. Remove what you don't need in “My deals”.",
+  weeklyNote:
+    "One pack (or 1 kg) of the best deals at {stores}. Remove what you don't need in “My deals”.",
   myPromos: "My deals",
   myPromosBar: "My deals: {n} · {amount}",
   myPromosCount: "{n} deals on the list",
   myPromosSave: "You save {amount} vs usual prices",
-  myPromosEmpty: "No deals chosen yet. In the leaflets tap “Add this offer” or “Add all” in “Basket of the week”.",
-  myPromosNote: "Only the deals you picked — without the other products in your basket.",
+  myPromosEmpty:
+    "No deals chosen yet. In the leaflets tap “Add this offer” or “Add all” in “Basket of the week”.",
+  myPromosNote:
+    "Only the deals you picked — without the other products in your basket.",
   myPromosShop: "Shop only these deals",
   myPromosOff: "Not counted today",
   bcatFood: "Food",
@@ -407,13 +478,22 @@ const en: Dict = {
   bcatHomeS: "Household",
   bcatOtherS: "Home",
   bcatAll: "All",
-  kzpGood: "Per KZP, {what} at {chain} is usually from {price} {ref} — here {pct}% cheaper.",
-  kzpWeak: "Per KZP, {what} at {chain} is available from {price} {ref} even without a deal.",
+  kzpGood:
+    "Per KZP, {what} at {chain} is usually from {price} {ref} — here {pct}% cheaper.",
+  kzpWeak:
+    "Per KZP, {what} at {chain} is available from {price} {ref} even without a deal.",
   perSize: "per {size}",
-  brochuresHintMain: "Deals from the weekly leaflets in {city}. We check them against KZP prices and count them in the plan.",
+  brochuresHintMain:
+    "Deals from the weekly leaflets in {city}. We check them against KZP prices and count them in the plan.",
   planTitle: "Your plan",
   savingShort: "You save {amount}",
   opt1: "One store",
+  storesQuestion: "How many stores will you visit?",
+  seg1: "Just one",
+  seg2: "Up to 2",
+  seg3: "Up to 3",
+  oneStoreRank: "Where to buy everything",
+  bestHere: "best value",
   opt2: "Two stores",
   opt3: "Three stores",
   optN: "{n} stores",
@@ -469,6 +549,9 @@ const en: Dict = {
   inBasketQty: "In basket",
   planTotal: "Total",
   planComplete: "All {total} products",
+  plusNoPrice: "+{n} without price",
+  onlyNoPrice: "{n} products without a price — your list is ready",
+  onlyNoPrice1: "1 product without a price — your list is ready",
   planIncomplete: "{n} of {total} products — incomplete basket",
   planStores: "{n} stores",
   planStore1: "1 store",
@@ -478,19 +561,23 @@ const en: Dict = {
   optAlt: "Another option",
   optIncomplete: "incomplete",
   optSelected: "Selected",
-  saveExplain: "You save {amount} compared with shopping only at {chain} — the cheapest store that has everything.",
-  saveExplainPartial: "You save {amount} compared with {chain} on the products it also has.",
+  saveExplain:
+    "You save {amount} compared with shopping only at {chain} — the cheapest store that has everything.",
+  saveExplainPartial:
+    "You save {amount} compared with {chain} on the products it also has.",
   saveNone: "One store costs the same as several.",
   extraStoreSaves: "The second store saves {amount}.",
   extraStoresSave: "The last added store saves {amount}.",
-  storeCostNote: "Because of the “cost of an extra store” ({cost}) the plan uses fewer stores: goods alone would be {total} in {n} stores.",
+  storeCostNote:
+    "Because of the “cost of an extra store” ({cost}) the plan uses fewer stores: goods alone would be {total} in {n} stores.",
   shoppingList: "Shopping list",
   buyAt: "At {chain}",
   storeTotal: "Store total",
   packsOf: "{packs} × {size}",
   packOne: "pack {size}",
   approxLine: "pack size unknown — amount is an estimate",
-  approxPlan: "Some amounts are estimates: the pack size of some products is unknown.",
+  approxPlan:
+    "Some amounts are estimates: the pack size of some products is unknown.",
   missingTitle: "Not in the plan",
   compareTitle: "Compare stores",
   compareFull: "With all products",
@@ -520,7 +607,8 @@ const en: Dict = {
   findBest: "Where is it cheapest",
   howTitle: "How it works",
   easyMode: "Easy mode",
-  easyModeSub: "Large text and only the essentials: products, quantity and where it is cheapest.",
+  easyModeSub:
+    "Large text and only the essentials: products, quantity and where it is cheapest.",
   easyAskTitle: "How should Pazarko look?",
   easyAskEasy: "Easy — large text",
   easyAskEasySub: "Only the essentials",
@@ -535,7 +623,8 @@ const en: Dict = {
   optionShow: "Show what to buy ▾",
   optionHide: "Hide ▴",
   easySaving: "You save {amount} compared with shopping only at {chain}.",
-  easyMoreHint: "More options (brands, leaflets, nearby stores) — turn off «Easy mode» above.",
+  easyMoreHint:
+    "More options (brands, leaflets, nearby stores) — turn off «Easy mode» above.",
   brandShort: "Brand",
   how1: "Pick what you buy — bread, milk, cheese…",
   how2: "Tap the green button «Where is it cheapest».",
@@ -554,17 +643,20 @@ const en: Dict = {
   all: "All",
   nothingFound: "Nothing found",
   noData: "no data",
-  emptyBasket: "Your basket is empty — add products and the best shopping plan will appear here.",
+  emptyBasket:
+    "Your basket is empty — add products and the best shopping plan will appear here.",
   toBasket: "Go to basket",
   howManyStores: "How many stores will you visit",
   oneStore: "1 store",
   anyNumber: "No limit",
   optimalBasket: "Optimal basket",
   storesCount: "{n} stores",
-  savingsText: "You save {amount} ({pct}%) compared with buying everything at {chain}, the best single store (for the same items).",
+  savingsText:
+    "You save {amount} ({pct}%) compared with buying everything at {chain}, the best single store (for the same items).",
   allInOne: "It's cheapest to buy everything in one place{chain}.",
   notFound: "Not found in this city: {list}",
-  idealHint: "With no store limit it would be {total} — another {extra} saved, but across {n} stores.",
+  idealHint:
+    "With no store limit it would be {total} — another {extra} saved, but across {n} stores.",
   whatWhere: "What to buy where",
   itemsAndStores: "{items} items · {stores} stores in city",
   inStore: "at store: {store}",
@@ -582,15 +674,18 @@ const en: Dict = {
   usePromo: "Include promotions",
   usePromoSub: "Use promo prices when they are lower",
   storeCost: "Cost of an extra store",
-  storeCostSub: "What a trip to one more store is worth to you. The plan won't split up just to save a few cents.",
+  storeCostSub:
+    "What a trip to one more store is worth to you. The plan won't split up just to save a few cents.",
   hideMeds: "Hide medicines",
   hideMedsSub: "Pharmacy groups from the CPC list",
   metro: "Metro (card required)",
-  metroSub: "Metro is a store for businesses with a customer card. Turn on if you have a Metro card.",
+  metroSub:
+    "Metro is a store for businesses with a customer card. Turn on if you have a Metro card.",
   metroCard: "card required",
   language: "Language",
   chainsInCityTitle: "Chains in the city",
-  chainsHint: "Turn off chains you don't shop at — they won't be used in the plan.",
+  chainsHint:
+    "Turn off chains you don't shop at — they won't be used in the plan.",
   chainSub: "{n} stores · UIC {eik}",
   data: "Data",
   source: "Source: {source}",
@@ -599,10 +694,12 @@ const en: Dict = {
   server: "Server: {url}",
   aboutData:
     "Prices are published by Bulgaria's Consumer Protection Commission (CPC) on kolkostruva.bg — 101 product groups from the large consumer basket. Chains with turnover above BGN 10 million must report prices daily.",
-  demoBanner: "Demo mode: chains and prices are fictional. Connect kolkostruva.bg data — see README.",
+  demoBanner:
+    "Demo mode: chains and prices are fictional. Connect kolkostruva.bg data — see README.",
   privacy: "Privacy",
   analytics: "Anonymous statistics",
-  analyticsSub: "Helps us see which products, chains and features are used. No name, email or location.",
+  analyticsSub:
+    "Helps us see which products, chains and features are used. No name, email or location.",
   analyticsAskTitle: "Help us improve Pazarko",
   analyticsAskText:
     "May we collect anonymous usage statistics (which products and chains people look for)? No name, email or location. You can change this anytime in Settings.",
@@ -620,14 +717,49 @@ const en: Dict = {
   unitMl: "ml",
   unitL: "L",
   unitPcs: "pcs",
-  sizeNote: "For products sold in different pack sizes, prices are converted to the same pack (e.g. 400 g) so the comparison is fair.",
+  sizeNote:
+    "For products sold in different pack sizes, prices are converted to the same pack (e.g. 400 g) so the comparison is fair.",
   tabDeals: "Deals",
   dealsTitle: "Super deals",
-  dealsHint: "The biggest discounts today in {city}. Prices are per pack on the shelf.",
+  dealsHint:
+    "The biggest discounts today in {city}. Prices are per pack on the shelf.",
   dealsEmpty: "No big discounts in this city today.",
   dealStores: "{n} stores",
   dealsToday: "Today",
   dealsBrochures: "Leaflets",
+  favTitle: "Favourite products",
+  favIntro:
+    "Products you always buy. Every week we look for them in the leaflets; when they're not on offer, they stay on your list at the usual KZP price.",
+  favPlaceholder: "e.g. Orehite Chardaka lukanka",
+  favAdd: "Add",
+  favInList: "On my list every week",
+  favOnSale: "📰 On offer: {chain} · {price} (−{pct}%) · until {date}",
+  favNoSale: "Not in the leaflets this week",
+  favKzp: "No deal: per KZP from {price} at {chain}",
+  favNoKzp:
+    "This exact product isn't in the KZP data — when not on offer, it stays on the list without a price",
+  favEmpty:
+    "No favourites yet. Type a product and brand — or tap “♡ Follow” on a leaflet offer.",
+  favCardTitle: "Favourites on offer",
+  favCardNone:
+    "Your favourites aren't in the leaflets this week — they stay on your list at the usual price.",
+  favCardAll: "All favourites",
+  favFollow: "Follow",
+  favFollowing: "Following",
+  favPromo: "Follow your favourite products",
+  favBadge: "Favourite",
+  favOnlyDeal: "Price shown when it's in a leaflet or in KZP data",
+  favCount: "Favourite products ({n})",
+  customPlaceholder: "Your own item, e.g. toilet paper",
+  customNoPrice: "No price — added by you",
+  unpricedTitle: "Without a price in the plan",
+  unpricedNote: "Buy them wherever you shop.",
+  otherStore: "Other",
+  share: "Share",
+  shareTitle: "Shopping list — Pazarko",
+  shareTotal: "Total ≈ {amount}",
+  mapOpen: "Map",
+  cardReminder: "💳 Bring your {chain} card — {n} of the deals need it",
   brochuresHint: "Offers from the chains' weekly leaflets in {city}.",
   brochuresSearch: "Search leaflets",
   onlyFood: "Food & drinks",
@@ -648,14 +780,16 @@ const en: Dict = {
   chooseBrand: "Brand",
   brandFrom: "from {price} · {n} chains",
   superDeal: "Super deal",
-  superDealText: "{product} at {chain} — {price} ({pct}% cheaper than your brand)",
+  superDealText:
+    "{product} at {chain} — {price} ({pct}% cheaper than your brand)",
   takeIt: "Take this one",
   showDeals: "Suggest super deals",
   showDealsSub: "Even if the brand isn't one of your favourites",
   premium: "Pazarko Premium",
   premiumSub: "Even more savings and convenience",
   premiumSoon: "Coming soon",
-  premiumFree: "Free forever: basket, 1–2 store plan, chain comparison, promotions and super deals.",
+  premiumFree:
+    "Free forever: basket, 1–2 store plan, chain comparison, promotions and super deals.",
   premiumLocked: "Premium feature",
   close: "Close",
   inDev: "in development",
@@ -678,11 +812,13 @@ const en: Dict = {
   storesFound: "{n} stores in the area",
   storesSelected: "Selected stores: {n}",
   searchStores: "Search: street, neighbourhood, chain…",
-  noGeoYet: "Store locations are still being prepared. Meanwhile, use “My stores”.",
+  noGeoYet:
+    "Store locations are still being prepared. Meanwhile, use “My stores”.",
   locDenied: "No location permission. Pick a neighbourhood instead.",
   locating: "Finding your location…",
   myLocation: "my location",
-  noStoresInArea: "No stores in this area — increase the radius or choose other stores.",
+  noStoresInArea:
+    "No stores in this area — increase the radius or choose other stores.",
   areaDemo: "Store selection isn't available in demo mode.",
   areaHint: "The plan will use only these stores.",
   osmCredit: "Locations © OpenStreetMap contributors",
@@ -690,7 +826,8 @@ const en: Dict = {
   maxStores: "Up to {n} stores",
   notFoundArea: "Not in your selected stores: {list}",
   forItems: "for {n} of {total} items",
-  coverageHint: "With this many stores {n} items are missing, so the total is lower. Choose {k}+ stores to get everything.",
+  coverageHint:
+    "With this many stores {n} items are missing, so the total is lower. Choose {k}+ stores to get everything.",
 };
 
 const DICTS: Record<Lang, Dict> = { bg, en };
@@ -713,12 +850,24 @@ export function makeT(lang: Lang) {
 export type T = ReturnType<typeof makeT>;
 
 /** «400 г», «1 кг», «75 мл», «10 бр.» */
-export function sizeLabel(ref: { unit: "kg" | "l" | "pcs"; size: number }, t: T, lang: Lang) {
-  const fmt = (n: number) => (lang === "bg" ? String(n).replace(".", ",") : String(n));
+export function sizeLabel(
+  ref: { unit: "kg" | "l" | "pcs"; size: number },
+  t: T,
+  lang: Lang,
+) {
+  const fmt = (n: number) =>
+    lang === "bg" ? String(n).replace(".", ",") : String(n);
   if (ref.unit === "pcs") return `${ref.size} ${t("unitPcs")}`;
   const small = ref.size < 1;
   const v = small ? Math.round(ref.size * 1000) : ref.size;
-  const u = ref.unit === "kg" ? (small ? t("unitG") : t("unitKg")) : small ? t("unitMl") : t("unitL");
+  const u =
+    ref.unit === "kg"
+      ? small
+        ? t("unitG")
+        : t("unitKg")
+      : small
+        ? t("unitMl")
+        : t("unitL");
   return `${fmt(v)} ${u}`;
 }
 
@@ -730,14 +879,20 @@ export function productDetail(p: Product, lang: Lang, t: T) {
 
 /** Ключ собственной марки сети в данных */
 export const OWN_BRAND = "@own";
-export const brandLabel = (b: string, t: T) => (b === OWN_BRAND ? t("ownBrand") : b);
+export const brandLabel = (b: string, t: T) =>
+  b === OWN_BRAND ? t("ownBrand") : b;
 
-export const productName = (p: Product | undefined, lang: Lang) => (p ? (lang === "en" ? p.en : p.bg) : "?");
-export const categoryName = (c: Category, lang: Lang) => (lang === "en" ? c.en : c.bg);
+export const productName = (p: Product | undefined, lang: Lang) =>
+  p ? (lang === "en" ? p.en : p.bg) : "?";
+export const categoryName = (c: Category, lang: Lang) =>
+  lang === "en" ? c.en : c.bg;
 
 /** Короткое название + детали: «Прясно мляко от 2% до 3,6% 1 л» → [«Прясно мляко», «от 2% до 3,6% 1 л»] */
 export function splitName(name: string, lang: Lang): [string, string] {
-  const re = lang === "en" ? /^(.*?)(,?\s+(?:size|\d|\().*)$/ : /^(.*?)(,?\s+(?:от|размер|\d|\().*)$/;
+  const re =
+    lang === "en"
+      ? /^(.*?)(,?\s+(?:size|\d|\().*)$/
+      : /^(.*?)(,?\s+(?:от|размер|\d|\().*)$/;
   const m = name.match(re);
   if (!m || m[1].length < 3) return [name, ""];
   return [m[1].replace(/,$/, ""), m[2].replace(/^,?\s*/, "")];

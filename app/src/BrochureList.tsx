@@ -19,8 +19,9 @@ import {
   visibleChains,
 } from "./lib/brochures";
 import { productName, sizeLabel, splitName } from "./lib/i18n";
-import { itemKey, pinFromBrochure } from "./lib/pins";
+import { isPerKgOffer, itemKey, pinFromBrochure } from "./lib/pins";
 import { weeklyPromoBasket } from "./lib/promoBasket";
+import { favoriteOffers, offerMatches } from "./lib/favorites";
 import { router } from "expo-router";
 import { useStore } from "./lib/store";
 import type { BrochureOffer } from "./lib/types";
@@ -195,6 +196,8 @@ export function BrochureList({ header }: { header: React.ReactElement }) {
               }}
             />
           </View>
+          {/* любимые продукты: что из них в акция тази седмица */}
+          <FavoritesCard visible={visible} today={today} />
           {/* готовая корзина из лучших акций недели */}
           <WeeklyCard visible={visible} today={today} />
           {/* 1) раздел — главный фильтр: плитки, все видны сразу */}
@@ -262,6 +265,126 @@ export function BrochureList({ header }: { header: React.ReactElement }) {
       renderItem={({ item }) => <OfferRow o={item} today={today} />}
     />
   );
+}
+
+function FavoritesCard({
+  visible,
+  today,
+}: {
+  visible: boolean[];
+  today: string;
+}) {
+  const st = useStore();
+  const { t, lang, brochures: bro, favorites } = st;
+  const k = useK();
+  const onSale = useMemo(
+    () =>
+      favorites
+        .map((f) => ({
+          f,
+          o: favoriteOffers(
+            f,
+            bro,
+            visible,
+            (o) => offerStatus(o, today) === "now",
+          )[0],
+        }))
+        .filter((x) => x.o),
+    [favorites, bro, visible, today],
+  );
+  const open = () => router.push("/favorites");
+  if (!favorites.length) {
+    return (
+      <Pressable
+        onPress={open}
+        accessibilityRole="button"
+        style={[
+          s.row,
+          {
+            gap: 10,
+            backgroundColor: C.card,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: C.line,
+            padding: 14,
+            minHeight: 56 * k,
+          },
+        ]}
+      >
+        <Text style={{ fontSize: 22 * k }}>❤️</Text>
+        <Text
+          style={{ flex: 1, fontWeight: "800", fontSize: 16 * k, color: C.ink }}
+        >
+          {t("favPromo")}
+        </Text>
+        <Icon name="chevron-forward" size={20 * k} color={C.muted} />
+      </Pressable>
+    );
+  }
+  return (
+    <View
+      style={{
+        backgroundColor: "#FFF1F0",
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: "#F4C9C4",
+        padding: 14,
+        gap: 8,
+      }}
+    >
+      <Text
+        style={{ fontWeight: "900", fontSize: 18 * k, color: C.ink }}
+        accessibilityRole="header"
+      >
+        ❤️ {t("favCardTitle")} · {onSale.length}/{favorites.length}
+      </Text>
+      {onSale.length ? (
+        onSale.slice(0, 5).map(({ f, o }) => (
+          <View key={f.id} style={{ gap: 1 }}>
+            <Text
+              style={{ fontWeight: "800", fontSize: 15.5 * k, color: C.ink }}
+            >
+              {f.name}
+            </Text>
+            <Text
+              style={{ color: C.promo, fontWeight: "700", fontSize: 14.5 * k }}
+            >
+              {bro?.chains[o!.c]?.name} · {money(o!.p ?? 0, lang)}
+              {isPerKgOffer(o!) ? t("perKg") : ""}
+              {o!.d ? ` (−${o!.d}%)` : ""} ·{" "}
+              {t("validTo", { date: shortDate(o!.t) })}
+            </Text>
+          </View>
+        ))
+      ) : (
+        <Text style={[s.muted, { fontSize: 14.5 * k }]}>
+          {t("favCardNone")}
+        </Text>
+      )}
+      <Pressable
+        onPress={open}
+        accessibilityRole="button"
+        hitSlop={6}
+        style={[s.row, { gap: 4, minHeight: 40 }]}
+      >
+        <Text style={{ color: C.green, fontWeight: "800", fontSize: 15 * k }}>
+          {t("favCardAll")} ({favorites.length})
+        </Text>
+        <Icon name="chevron-forward" size={18 * k} color={C.green} />
+      </Pressable>
+    </View>
+  );
+}
+
+/** Название любимого продукта из предложения: «Луканка Орехите» (первое слово + марка) */
+function favNameFromOffer(o: BrochureOffer) {
+  const title = (w: string) =>
+    w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : "";
+  const brand = (o.b ?? "").split(/\s+/)[0] ?? "";
+  const first =
+    o.n.split(/[\s,;]+/).find((w) => w.length > 2 && w.toUpperCase() !== w) ??
+    o.n.split(/\s+/)[0];
+  return [first, title(brand)].filter(Boolean).join(" ");
 }
 
 function WeeklyCard({ visible, today }: { visible: boolean[]; today: string }) {
@@ -575,6 +698,11 @@ function OfferRow({ o, today }: { o: BrochureOffer; today: string }) {
       card={!!o.k}
       condition={o.w}
       check={check}
+      onFollow={() => {
+        const f = st.addFavorite(favNameFromOffer(o));
+        if (f) track("favorite_from_offer", { chain, product: o.n });
+      }}
+      followed={st.favorites.some((f) => offerMatches(f.words, o))}
       qty={inBasket?.qty}
       qtyLabel={inBasket ? qtyLabel(inBasket.qty, perKg, t, lang) : undefined}
       onAdd={

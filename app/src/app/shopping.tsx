@@ -3,10 +3,12 @@
 // отметки не удаляют товары из корзины.
 
 import { router } from "expo-router";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackLink, ChainBadge, Icon, ProductTile } from "../components";
 import { shortDate } from "../lib/brochures";
+import { track } from "../lib/analytics";
+import { shareText, shoppingText } from "../lib/share";
 import { useStore } from "../lib/store";
 import { Button, C, Card, money, useK, useS } from "../ui";
 
@@ -18,6 +20,11 @@ export default function ShoppingScreen() {
   const m = (n: number) => money(n, lang);
   const back = () =>
     router.canGoBack() ? router.back() : router.replace("/result");
+  const cityName = st.baseCity
+    ? lang === "en" && st.baseCity.nameEn
+      ? st.baseCity.nameEn
+      : st.baseCity.name.replace(/^(гр|с)\. /, "")
+    : "";
 
   if (!sh) {
     return (
@@ -81,7 +88,7 @@ export default function ShoppingScreen() {
               }}
             />
           </View>
-          {done.length < lines.length && (
+          {done.length < lines.length && sh.total > 0 && (
             <Text
               style={{ color: "#E3F0E5", fontSize: 17 * k, fontWeight: "600" }}
             >
@@ -92,17 +99,94 @@ export default function ShoppingScreen() {
         <Text style={[s.muted, { fontSize: 13 * k }]}>
           {t("shopSnapshot", { date: shortDate(sh.startedAt.slice(0, 10)) })}
         </Text>
+        <Pressable
+          onPress={() =>
+            shareText(
+              shoppingText(
+                sh,
+                t("shareTitle"),
+                (amount) => t("shareTotal", { amount }),
+                m,
+              ),
+              "shopping",
+            )
+          }
+          accessibilityRole="button"
+          style={[
+            s.row,
+            {
+              gap: 8,
+              justifyContent: "center",
+              minHeight: 48 * k,
+              borderRadius: 14,
+              borderWidth: 1.5,
+              borderColor: C.green,
+            },
+          ]}
+        >
+          <Icon name="share-outline" size={20 * k} color={C.green} />
+          <Text style={{ color: C.green, fontWeight: "800", fontSize: 16 * k }}>
+            {t("share")}
+          </Text>
+        </Pressable>
 
         {sh.stores.map((store) => (
           <Card key={store.chain} style={{ gap: 12 }}>
             <View style={{ gap: 2 }}>
               <View style={[s.row, { gap: 6, flexWrap: "wrap" }]}>
                 <ChainBadge name={store.chain} size={18} />
-                <Text style={[s.body, { fontWeight: "800", fontSize: 18 * k }]}>
-                  · {m(store.subtotal)}
-                </Text>
+                {store.subtotal > 0 && (
+                  <Text
+                    style={[s.body, { fontWeight: "800", fontSize: 18 * k }]}
+                  >
+                    · {m(store.subtotal)}
+                  </Text>
+                )}
               </View>
               {!!store.label && <Text style={s.muted}>📍 {store.label}</Text>}
+              {store.subtotal > 0 && (
+                <Pressable
+                  onPress={() => {
+                    track("map_opened", { chain: store.chain });
+                    const q =
+                      `${store.label ?? store.chain} ${cityName}`.trim();
+                    Linking.openURL(
+                      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`,
+                    ).catch(() => {});
+                  }}
+                  accessibilityRole="link"
+                  hitSlop={6}
+                  style={[
+                    s.row,
+                    { gap: 4, alignSelf: "flex-start", minHeight: 40 },
+                  ]}
+                >
+                  <Icon name="map-outline" size={18 * k} color={C.green} />
+                  <Text
+                    style={{
+                      color: C.green,
+                      fontWeight: "800",
+                      fontSize: 15 * k,
+                    }}
+                  >
+                    {t("mapOpen")}
+                  </Text>
+                </Pressable>
+              )}
+              {store.lines.some((l) => l.card) && (
+                <Text
+                  style={{
+                    color: "#8A5A00",
+                    fontWeight: "700",
+                    fontSize: 14.5 * k,
+                  }}
+                >
+                  {t("cardReminder", {
+                    chain: store.chain,
+                    n: store.lines.filter((l) => l.card).length,
+                  })}
+                </Text>
+              )}
             </View>
             {store.lines.map((l) => {
               const on = sh.checked.includes(l.key);
@@ -148,7 +232,7 @@ export default function ShoppingScreen() {
                     </Text>
                   </View>
                   <Text style={[s.body, { fontWeight: "800" }]}>
-                    {m(l.cost)}
+                    {l.cost > 0 ? m(l.cost) : ""}
                   </Text>
                 </Pressable>
               );

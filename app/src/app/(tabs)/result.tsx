@@ -20,21 +20,25 @@ import {
   lineTexts,
   PurchaseLine,
   ScreenHeader,
+  Segmented,
 } from "../../components";
 import { AreaPicker } from "../../AreaPicker";
 import { track } from "../../lib/analytics";
+import { shareText, shoppingText } from "../../lib/share";
 import {
   bestBrochureOffer,
   shortDate,
   visibleChains,
+  offerStatus,
 } from "../../lib/brochures";
 import { IS_DEMO } from "../../lib/data";
 import type { Plan } from "../../lib/optimize";
-import { itemKey } from "../../lib/pins";
+import { isPerKgOffer, itemKey } from "../../lib/pins";
+import { offerMatches } from "../../lib/favorites";
 import { FREE_MAX_STORES } from "../../lib/premium";
 import { bestPromo } from "../../lib/prices";
 import { useStore } from "../../lib/store";
-import type { BrochureOffer, CityFile } from "../../lib/types";
+import type { BasketItem, BrochureOffer, CityFile } from "../../lib/types";
 import { usePlan } from "../../lib/usePlan";
 import {
   Button,
@@ -46,6 +50,7 @@ import {
   money,
   useK,
   useS,
+  qtyLabel,
 } from "../../ui";
 
 type Option = { id: string; kind: "cheapest" | "one" | "alt"; plan: Plan };
@@ -136,7 +141,8 @@ export default function PlanScreen() {
     for (const sp of sel.plan.stores)
       for (const l of sp.lines) {
         const b = byKey.get(l.key);
-        if (!b || b.pin) continue;
+        // любимому продукту другую марку не предлагаем
+        if (!b || b.pin || b.fav) continue;
         const o = bestBrochureOffer(
           st.brochures,
           l.productId,
@@ -242,7 +248,10 @@ export default function PlanScreen() {
                   : t("calculating")}
             </Text>
             {!basket.length && (
-              <Button title={t("toBasket")} onPress={() => router.push("/basket")} />
+              <Button
+                title={t("toBasket")}
+                onPress={() => router.push("/basket")}
+              />
             )}
           </Card>
         </ScrollView>
@@ -252,9 +261,37 @@ export default function PlanScreen() {
   }
 
   const plan = sel.plan;
-  const total = basket.length;
-  const found = total - plan.missing.length;
-  const fullSingle = result.singles.find((x) => x.missing.length === 0);
+  // «В един магазин»: продукты, которых нет нигде (любимые без цены, свои строки), не делают магазин «неполным»
+  const nowhere = new Set(
+    (result.singles[0]?.missing ?? []).filter((k) =>
+      result.singles.every((x) => x.missing.includes(k)),
+    ),
+  );
+  const singlesEff = result.singles.map((x) => ({
+    ...x,
+    missing: x.missing.filter((k) => !nowhere.has(k)),
+  }));
+  const bestFull = Math.min(
+    ...singlesEff.filter((x) => !x.missing.length).map((x) => x.total),
+    Infinity,
+  );
+  const oneStoreRows = {
+    full: singlesEff
+      .filter((x) => !x.missing.length)
+      .sort((a, b) => a.total - b.total)
+      .map((x) => ({
+        ...x,
+        overpay: Math.round((x.total - bestFull) * 100) / 100,
+      })),
+    partial: singlesEff
+      .filter((x) => x.missing.length)
+      .sort((a, b) => a.missing.length - b.missing.length || a.total - b.total),
+  };
+  // продукты без цены нигде (свои строки, любимые без цены) не делают корзину «неполной» — показываются отдельно
+  const effMissing = plan.missing.filter((k) => !nowhere.has(k));
+  const total = basket.length - P.unpriced.length - nowhere.size;
+  const found = total - effMissing.length;
+  const fullSingle = singlesEff.find((x) => x.missing.length === 0);
   const storesLabel = (n: number) =>
     n === 1
       ? t("opt1")
@@ -274,30 +311,82 @@ export default function PlanScreen() {
     )
       ? `${t("optAlt")} · ${o.plan.stores.length}`
       : storesLabel(o.plan.stores.length);
-  // снимок плана для режима покупок: цены в нём больше не меняются
-  const startShopping = () => {
-    st.startShopping({
+  // снимок плана для режима покупок и «Сподели»: цены в нём больше не меняются;
+  // позиции без цены (свои строки, любимые без группы КЗП) — отдельным блоком «Други»
+  // без цены: свои строки и любимые, которых нет ни в брошюрах, ни (точно этим товаром) в КЗП
+  const noPrice = [
+    ...P.unpriced,
+    ...plan.missing
+      .filter((k) => k.startsWith("fav:"))
+      .map((k) => byKey.get(k)!)
+      .filter(Boolean),
+  ];
+  // любимый без цены в плане: подходящая акция брошюры, которую план не смог посчитать (напр. «насипна», за кг)
+  const favOfferText = (b: BasketItem) => {
+    if (!b.fav || !b.words || !st.brochures) return "";
+    const o = st.brochures.offers.find(
+      (x) => offerStatus(x, today) === "now" && offerMatches(b.words!, x),
+    );
+    return o
+      ? `📰 ${st.brochures.chains[o.c]?.name ?? ""} · ${m(o.p ?? 0)}${isPerKgOffer(o) ? t("perKg") : ""} · ${t("validTo", { date: shortDate(o.t) })}`
+      : "";
+  };
+  const buildList = () => {
+    const stores = plan.stores.map((sp) => ({
+      chain: chainName(sp.chain),
+      label: city.chains[sp.chain]?.label,
+      subtotal: sp.subtotal,
+      lines: sp.lines.map((l) => {
+        const tx = lineTexts(l, byKey.get(l.key), st);
+        return {
+          key: `${sp.chain}|${l.key}`,
+          name: tx.group,
+          detail: [tx.what, tx.qtyText, tx.brochureNote]
+            .filter(Boolean)
+            .join(" · "),
+          cost: l.cost,
+          emoji: tx.emoji,
+          card: !!(l.offer.brochure?.card || byKey.get(l.key)?.pin?.card),
+        };
+      }),
+    }));
+    if (noPrice.length)
+      stores.push({
+        chain: t("otherStore"),
+        label: undefined,
+        subtotal: 0,
+        lines: noPrice.map((b) => ({
+          key: `other|${itemKey(b)}`,
+          name: b.name ?? itemName(b, lang, st.productById),
+          detail: [favOfferText(b), qtyLabel(b.qty, false, t, lang)]
+            .filter(Boolean)
+            .join(" · "),
+          cost: 0,
+          emoji: b.fav ? "❤️" : "📝",
+          card: false,
+        })),
+      });
+    return {
       pricesDate: st.index?.date ?? "",
       total: plan.total,
       approx: plan.approx,
-      stores: plan.stores.map((sp) => ({
-        chain: chainName(sp.chain),
-        label: city.chains[sp.chain]?.label,
-        subtotal: sp.subtotal,
-        lines: sp.lines.map((l) => {
-          const tx = lineTexts(l, byKey.get(l.key), st);
-          return {
-            key: `${sp.chain}|${l.key}`,
-            name: tx.group,
-            detail: [tx.what, tx.qtyText, tx.brochureNote].filter(Boolean).join(" · "),
-            cost: l.cost,
-            emoji: tx.emoji,
-          };
-        }),
-      })),
-    });
+      stores,
+    };
+  };
+  const startShopping = () => {
+    st.startShopping(buildList());
     router.push("/shopping");
   };
+  const share = () =>
+    shareText(
+      shoppingText(
+        buildList(),
+        t("shareTitle"),
+        (amount) => t("shareTotal", { amount }),
+        m,
+      ),
+      "plan",
+    );
 
   // 3) экономия и её база
   const explain: string[] = [];
@@ -305,7 +394,7 @@ export default function PlanScreen() {
   if (plan.stores.length > 1) {
     if (
       fullSingle &&
-      plan.missing.length === 0 &&
+      effMissing.length === 0 &&
       fullSingle.total - plan.total > 0.004
     ) {
       saved = fullSingle.total - plan.total;
@@ -373,6 +462,28 @@ export default function PlanScreen() {
       <ScrollView contentContainerStyle={[s.pad, { paddingBottom: 140 }]}>
         {header}
 
+        {/* Сколько магазинов: «в один» — всё в одном магазине, самом выгодном */}
+        {total > 0 && (
+          <View style={{ gap: 6 }}>
+            <Text style={[s.body, { fontWeight: "800" }]}>
+              {t("storesQuestion")}
+            </Text>
+            <Segmented
+              items={[
+                { id: "1", label: t("seg1"), icon: "storefront-outline" },
+                { id: "2", label: t("seg2") },
+                { id: "3", label: t("seg3") },
+              ]}
+              value={String(maxStores === 0 ? 3 : Math.min(maxStores, 3))}
+              onChange={(v) => {
+                setSelected("cheapest");
+                st.updateSettings({ maxStores: Number(v) });
+                track("stores_switch", { stores: Number(v) });
+              }}
+            />
+          </View>
+        )}
+
         {/* 1) Общая стоимость, полнота корзины, число магазинов, экономия */}
         <View
           style={{
@@ -389,38 +500,53 @@ export default function PlanScreen() {
           <View style={{ flex: 1, gap: 2 }}>
             <Text
               style={{
-                color: plan.missing.length ? "#FFE1D8" : "#fff",
+                color: effMissing.length ? "#FFE1D8" : "#fff",
                 fontSize: 18 * kf,
                 fontWeight: "800",
               }}
             >
-              {plan.missing.length
-                ? t("planIncomplete", { n: found, total })
-                : t("planComplete", { total })}
+              {total === 0
+                ? noPrice.length === 1
+                  ? t("onlyNoPrice1")
+                  : t("onlyNoPrice", { n: noPrice.length })
+                : effMissing.length
+                  ? t("planIncomplete", { n: found, total })
+                  : t("planComplete", { total })}
+              {total > 0 && noPrice.length > 0
+                ? ` · ${t("plusNoPrice", { n: noPrice.length })}`
+                : ""}
             </Text>
-            <Text
-              style={{
-                color: "#fff",
-                fontSize: 40 * kf,
-                fontWeight: "900",
-                letterSpacing: -1,
-              }}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-            >
-              {plan.approx ? "≈ " : ""}
-              {m(plan.total)}
-            </Text>
-            <Text
-              style={{ color: "#E3F0E5", fontSize: 16 * kf, fontWeight: "600" }}
-            >
-              {[
-                storesLabel(plan.stores.length),
-                saved > 0.004 ? t("savingShort", { amount: m(saved) }) : "",
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </Text>
+            {total > 0 && (
+              <>
+                <Text
+                  style={{
+                    color: "#fff",
+                    fontSize: 40 * kf,
+                    fontWeight: "900",
+                    letterSpacing: -1,
+                  }}
+                >
+                  {plan.approx ? "≈ " : ""}
+                  {m(plan.total)}
+                </Text>
+                <Text
+                  style={{
+                    color: "#E3F0E5",
+                    fontSize: 16 * kf,
+                    fontWeight: "600",
+                  }}
+                >
+                  {[
+                    plan.stores.length === 1
+                      ? `${t("opt1")} · ${chainName(plan.stores[0].chain)}`
+                      : storesLabel(plan.stores.length),
+                    saved > 0.004 ? t("savingShort", { amount: m(saved) }) : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </Text>
+              </>
+            )}
           </View>
           {!easy && (
             <View
@@ -440,7 +566,29 @@ export default function PlanScreen() {
         </View>
 
         {/* 2) Варианты покупки: «Един магазин» / «Два магазина» … */}
-        {options.length > 1 && (
+        {/* В один магазин: где выгоднее купить всё (любимые и брошюры уже в цене) */}
+        {maxStores === 1 &&
+          oneStoreRows.full.length + oneStoreRows.partial.length > 1 && (
+            <>
+              <CompareBlock
+                title={`🏪 ${t("oneStoreRank")}`}
+                bestText={`✓ ${t("bestHere")}`}
+                rows={oneStoreRows.full}
+                base={plan.total}
+                city={city}
+              />
+              <CompareBlock
+                title={t("compareNotFull")}
+                rows={oneStoreRows.partial}
+                base={plan.total}
+                city={city}
+                incomplete
+                limit={5}
+              />
+            </>
+          )}
+
+        {options.length > 1 && maxStores !== 1 && (
           <View style={{ gap: 10 }} accessibilityRole="radiogroup">
             {/* явные ряды по 2: проценты с gap переполняли ряд на узких экранах */}
             {chunk(options, twoCols ? 2 : 1).map((row) => (
@@ -454,6 +602,7 @@ export default function PlanScreen() {
                       base={cheapest?.plan}
                       active={o.id === sel.id}
                       total={total}
+                      ignore={nowhere}
                       onPress={() => {
                         setSelected(o.id);
                         track("option_selected", {
@@ -471,10 +620,12 @@ export default function PlanScreen() {
         )}
 
         {/* 3) База сравнения и пояснения */}
-        <View style={[s.row, { gap: 6, alignItems: "flex-start" }]}>
-          <Icon name="information-circle-outline" size={20} color={C.muted} />
-          <Text style={[s.muted, { flex: 1 }]}>{t("baseNote")}</Text>
-        </View>
+        {total > 0 && (
+          <View style={[s.row, { gap: 6, alignItems: "flex-start" }]}>
+            <Icon name="information-circle-outline" size={20} color={C.muted} />
+            <Text style={[s.muted, { flex: 1 }]}>{t("baseNote")}</Text>
+          </View>
+        )}
         {(explain.length > 0 || plan.approx) && (
           <Card
             style={{
@@ -535,6 +686,7 @@ export default function PlanScreen() {
                   !easy &&
                   b &&
                   !b.pin &&
+                  !b.fav &&
                   b.brand &&
                   settings.showDeals &&
                   settings.usePromo
@@ -619,7 +771,7 @@ export default function PlanScreen() {
           </Card>
         ))}
 
-        {plan.missing.length > 0 && (
+        {plan.missing.some((k) => !k.startsWith("fav:")) && (
           <Card
             style={{
               gap: 8,
@@ -630,19 +782,66 @@ export default function PlanScreen() {
             <Text style={[s.body, { fontWeight: "800" }]}>
               ⚠️ {t("missingTitle")}
             </Text>
-            {plan.missing.map((k) => (
-              <Text key={k} style={s.body}>
-                • {name(k)}
-                {reasonFor(k) ? (
-                  <Text style={s.muted}> — {reasonFor(k)}</Text>
-                ) : null}
-              </Text>
-            ))}
+            {plan.missing
+              .filter((k) => !k.startsWith("fav:"))
+              .map((k) => (
+                <Text key={k} style={s.body}>
+                  • {name(k)}
+                  {reasonFor(k) ? (
+                    <Text style={s.muted}> — {reasonFor(k)}</Text>
+                  ) : null}
+                </Text>
+              ))}
           </Card>
         )}
 
+        {noPrice.length > 0 && (
+          <Card style={{ gap: 6 }}>
+            <Text style={[s.body, { fontWeight: "800" }]}>
+              📝 {t("unpricedTitle")}
+            </Text>
+            {noPrice.map((b) => (
+              <Text key={itemKey(b)} style={s.body}>
+                • {b.fav ? "❤️ " : ""}
+                {b.name}
+                {b.qty > 1 ? ` × ${b.qty}` : ""}
+                {favOfferText(b) ? (
+                  <Text style={{ color: C.promo, fontWeight: "700" }}>
+                    {"\n  "}
+                    {favOfferText(b)}
+                  </Text>
+                ) : null}
+              </Text>
+            ))}
+            <Text style={s.muted}>{t("unpricedNote")}</Text>
+          </Card>
+        )}
+
+        <Pressable
+          onPress={share}
+          accessibilityRole="button"
+          style={[
+            s.row,
+            {
+              gap: 8,
+              justifyContent: "center",
+              minHeight: 50 * kf,
+              borderRadius: 14,
+              borderWidth: 1.5,
+              borderColor: C.green,
+            },
+          ]}
+        >
+          <Icon name="share-outline" size={20 * kf} color={C.green} />
+          <Text
+            style={{ color: C.green, fontWeight: "800", fontSize: 17 * kf }}
+          >
+            {t("share")}
+          </Text>
+        </Pressable>
+
         {/* 5) Подробное сравнение: полные и неполные корзины раздельно (не в «Лесен режим») */}
-        {!easy && (
+        {!easy && total > 0 && (
           <Pressable
             onPress={() => setDetails(!details)}
             accessibilityRole="button"
@@ -730,6 +929,7 @@ function OptionCard({
   base,
   active,
   total,
+  ignore,
   onPress,
 }: {
   title: string;
@@ -738,6 +938,8 @@ function OptionCard({
   base?: Plan;
   active: boolean;
   total: number;
+  /** продукты без цены нигде — не считаются недостающими */
+  ignore?: Set<string>;
   onPress: () => void;
 }) {
   const { t, lang } = useStore();
@@ -745,7 +947,8 @@ function OptionCard({
   const kf = useK();
   const m = (n: number) => money(n, lang);
   const more = base ? Math.round((plan.total - base.total) * 100) / 100 : 0;
-  const incomplete = plan.missing.length > 0;
+  const missingN = plan.missing.filter((k) => !ignore?.has(k)).length;
+  const incomplete = missingN > 0;
   return (
     <Pressable
       onPress={onPress}
@@ -796,7 +999,7 @@ function OptionCard({
             ]}
           >
             {t("optIncomplete")}:{" "}
-            {t("estimateOf", { n: total - plan.missing.length, total })}
+            {t("estimateOf", { n: total - missingN, total })}
           </Text>
         ) : more > 0.004 ? (
           <Text
@@ -819,12 +1022,16 @@ function CompareBlock({
   base,
   city,
   incomplete,
+  bestText,
+  limit,
 }: {
   title: string;
   rows: { chain: number; total: number; missing: string[]; overpay: number }[];
   base: number;
   city: CityFile;
   incomplete?: boolean;
+  bestText?: string;
+  limit?: number;
 }) {
   const { t, lang } = useStore();
   const s = useS();
@@ -834,7 +1041,7 @@ function CompareBlock({
   return (
     <Card style={{ gap: 12 }}>
       <Text style={[s.body, { fontWeight: "800" }]}>{title}</Text>
-      {rows.map((x) => (
+      {rows.slice(0, limit ?? rows.length).map((x) => (
         <View key={x.chain} style={{ gap: 5 }}>
           <View style={[s.row, { justifyContent: "space-between" }]}>
             <Text
@@ -880,7 +1087,7 @@ function CompareBlock({
               ? t("missingN", { n: x.missing.length })
               : x.overpay > 0.004
                 ? t("overpay", { amount: m(x.overpay) })
-                : t("same")}
+                : (bestText ?? t("same"))}
           </Text>
         </View>
       ))}
