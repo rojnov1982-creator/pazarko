@@ -2,10 +2,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { setAnalyticsEnabled, setCommonProps, track } from "./analytics";
 import { buildAreaCity, storesInArea } from "./area";
-import { loadCity, loadIndex, loadProducts, loadStoreFile } from "./data";
+import { loadBrochures, loadCity, loadIndex, loadProducts, loadStoreFile } from "./data";
 import { deviceLang, Lang, makeT, T, TKey } from "./i18n";
 import { canUse, Feature } from "./premium";
-import type { Area, BasketItem, CityFile, IndexFile, Product, ProductsFile, StoreFile } from "./types";
+import type { Area, BasketItem, BrochureFile, CityFile, IndexFile, Product, ProductsFile, StoreFile } from "./types";
 
 export interface Settings {
   maxStores: number; // 0 = без лимита
@@ -80,6 +80,8 @@ interface Ctx {
   error: string | null;
   index: IndexFile | null;
   products: ProductsFile | null;
+  /** брошюры сетей (null — нет данных или ещё не загрузились) */
+  brochures: BrochureFile | null;
   productById: Map<number, Product>;
   /** данные для расчёта: весь город или собранные из магазинов района */
   city: CityFile | null;
@@ -117,6 +119,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState<IndexFile | null>(null);
   const [products, setProducts] = useState<ProductsFile | null>(null);
+  const [brochures, setBrochures] = useState<BrochureFile | null>(null);
   const [city, setCity] = useState<CityFile | null>(null);
   const [areaCity, setAreaCity] = useState<CityFile | null>(null);
   const [areaStoreCount, setAreaStoreCount] = useState(0);
@@ -134,6 +137,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const prods = await loadProducts(); // после index — чтобы взять файл текущей версии данных
         setIndex(idx);
         setProducts(prods);
+        loadBrochures().then(setBrochures); // не задерживаем запуск
         const s = saved ? JSON.parse(saved) : {};
         if (Array.isArray(s.basket)) setBasket(s.basket);
         if (s.settings) setSettings({ ...DEFAULT_SETTINGS, lang: deviceLang(), ...s.settings });
@@ -225,6 +229,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     error,
     index,
     products,
+    brochures,
     productById,
     city: area.mode !== "city" && areaCity ? areaCity : city,
     baseCity: city,

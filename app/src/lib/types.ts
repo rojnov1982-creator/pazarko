@@ -104,3 +104,47 @@ export interface BasketItem {
   /** выбранная марка; нет — любая марка (самое дешёвое) */
   brand?: string;
 }
+
+/** Брошюры сетей (data-pipeline/brochures.mjs → brochures.json) */
+export interface BrochureOffer {
+  /** индекс сети в BrochureFile.chains */
+  c: number;
+  /** действует с / по (YYYY-MM-DD) */
+  f: string;
+  t: string;
+  /** индекс вида товара в BrochureFile.types */
+  y: number;
+  /** раздел брошюры: 1–12 храни и напитки, 13 химия, 15 животни, 16–17 дом и техника */
+  a?: number;
+  /** группа КЗП (= id продукта) */
+  g?: number;
+  b?: string;
+  /** собствена марка */
+  o?: 1;
+  n: string;
+  /** цена по предложению */
+  p?: number;
+  /** цена до намалението */
+  r?: number;
+  /** отстъпка, % */
+  d?: number;
+  /** цена за единица: "2.36/kg" */
+  u?: string;
+  /** цена за еталонната опаковка на групата (за сравнение с цената в плана) */
+  rp?: number;
+  /** само с карта / приложение на веригата */
+  k?: 1;
+  /** условна механика (купи 2, от сума, код) — не участва в сравнението */
+  m?: string;
+  /** условие от брошурата */
+  w?: string;
+}
+
+export interface BrochureFile {
+  v: number;
+  generatedAt: string;
+  today: string;
+  chains: { name: string; match: string[] }[];
+  types: string[];
+  offers: BrochureOffer[];
+}

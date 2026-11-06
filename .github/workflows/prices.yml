@@ -57,6 +57,9 @@ jobs:
       - name: Пересобрать данные с координатами
         run: node ingest.mjs --out ../site
         working-directory: data-pipeline
+      - name: Брошюры сетей
+        run: node brochures.mjs --out ../site
+        working-directory: data-pipeline
       - name: Добавить страницы сайта
         run: cp -r site-static/. site/
       - uses: actions/upload-pages-artifact@v3

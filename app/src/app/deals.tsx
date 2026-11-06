@@ -1,13 +1,14 @@
-// Супер оферти: самые большие скидки дня в городе. Бесплатно для всех.
+// Оферти: «Днес» — самые большие скидки дня в городе по данным КЗП; «Брошури» — седмичните брошури на веригите.
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { track } from "../lib/analytics";
 import { IS_DEMO } from "../lib/data";
 import { excludedIndexes } from "../lib/prices";
 import { useStore } from "../lib/store";
-import { C, CAT_EMOJI, DemoBanner, money, s } from "../ui";
+import { BrochureList } from "../BrochureList";
+import { C, CAT_EMOJI, Chip, DemoBanner, money, s } from "../ui";
 
 export default function DealsScreen() {
   const st = useStore();
@@ -18,6 +19,27 @@ export default function DealsScreen() {
   );
   const deals = (city?.deals ?? []).filter((d) => !excluded.has(d[1]));
   const cityName = city ? (lang === "en" && city.nameEn ? city.nameEn : city.name.replace(/^(гр|с)\. /, "")) : "";
+  const [mode, setMode] = useState<"brochures" | "today">(st.brochures ? "brochures" : "today");
+
+  const header = (
+    <View style={{ gap: 8 }}>
+      <Text style={s.title}>{t("dealsTitle")}</Text>
+      <View style={[s.row, { gap: 8 }]}>
+        <Chip label={`📰 ${t("dealsBrochures")}`} active={mode === "brochures"} onPress={() => setMode("brochures")} />
+        <Chip label={`🔥 ${t("dealsToday")}`} active={mode === "today"} onPress={() => setMode("today")} />
+      </View>
+      <Text style={s.muted}>{mode === "today" ? t("dealsHint", { city: cityName }) : t("brochuresHint", { city: cityName })}</Text>
+      {IS_DEMO && <DemoBanner />}
+    </View>
+  );
+
+  if (mode === "brochures") {
+    return (
+      <SafeAreaView style={s.screen} edges={["top"]}>
+        <BrochureList header={header} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.screen} edges={["top"]}>
@@ -25,13 +47,7 @@ export default function DealsScreen() {
         data={deals}
         keyExtractor={(d, i) => `${d[1]}-${d[0]}-${i}`}
         contentContainerStyle={[s.pad, { paddingBottom: 32 }]}
-        ListHeaderComponent={
-          <View style={{ gap: 8, marginBottom: 4 }}>
-            <Text style={s.title}>{t("dealsTitle")}</Text>
-            <Text style={s.muted}>{t("dealsHint", { city: cityName })}</Text>
-            {IS_DEMO && <DemoBanner />}
-          </View>
-        }
+        ListHeaderComponent={<View style={{ marginBottom: 4 }}>{header}</View>}
         ListEmptyComponent={<Text style={s.muted}>{t("dealsEmpty")}</Text>}
         renderItem={({ item: d }) => {
           const [gid, ci, product, shelf, promo, pct, stores] = d;

@@ -3,12 +3,14 @@ import { useCallback, useMemo } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { track } from "../lib/analytics";
+import { bestBrochureOffer, shortDate, todayIso, visibleChains } from "../lib/brochures";
 import { IS_DEMO } from "../lib/data";
 import { brandLabel, productName, splitName } from "../lib/i18n";
 import { optimizeBasket } from "../lib/optimize";
 import { FREE_MAX_STORES } from "../lib/premium";
 import { bestPromo, excludedIndexes } from "../lib/prices";
 import { useStore } from "../lib/store";
+import type { BrochureOffer } from "../lib/types";
 import { Button, C, Card, Chip, DemoBanner, H, mono, money, PromoBadge, qtyLabel, s } from "../ui";
 
 export default function ResultScreen() {
@@ -34,8 +36,27 @@ export default function ResultScreen() {
     });
   }, [city, basket, settings, maxStores, excluded]);
 
+  // Брошюры: если в действующей брошюре товар группы на 5–60% дешевле цены в плане — подсказка под строкой
+  // (дешевле в разы — почти всегда ошибка разбора брошюры или другая фасовка)
+  const today = todayIso();
+  const visibleBro = useMemo(
+    () => visibleChains(st.brochures, st.baseCity, settings.excludedChains),
+    [st.brochures, st.baseCity, settings.excludedChains],
+  );
+  const broHints = useMemo(() => {
+    const m = new Map<number, BrochureOffer>();
+    if (!result || !st.brochures || !settings.showDeals || !settings.usePromo) return m;
+    for (const sp of result.plan.stores)
+      for (const l of sp.lines) {
+        const brand = basket.find((b) => b.productId === l.productId)?.brand;
+        const o = bestBrochureOffer(st.brochures, l.productId, visibleBro, today, brand);
+        if (o && o.rp! < l.offer.price * 0.95 && o.rp! >= l.offer.price * 0.4) m.set(l.productId, o);
+      }
+    return m;
+  }, [result, st.brochures, settings.showDeals, settings.usePromo, basket, visibleBro, today]);
+
   // Статистика: итог плана, когда экран открыт (с паузой, чтобы не писать каждое нажатие)
-  const planKey = result ? `${basket.length}|${maxStores}|${settings.usePromo}|${result.plan.total}|${st.area.mode}` : "";
+  const planKey = result ? `${basket.length}|${maxStores}|${settings.usePromo}|${result.plan.total}|${st.area.mode}|${broHints.size}` : "";
   useFocusEffect(
     useCallback(() => {
       if (!result || !city) return;
@@ -55,6 +76,8 @@ export default function ResultScreen() {
           best_single_chain: result.bestSingle ? name(result.bestSingle.chain) : undefined,
           savings: Math.round(result.savings * 100) / 100,
           savings_pct: result.savingsPct,
+          brochure_hints: broHints.size,
+          brochure_hint_chains: [...new Set([...broHints.values()].map((o) => st.brochures?.chains[o.c]?.name ?? "?"))],
         });
       }, 1500);
       return () => clearTimeout(id);
@@ -198,6 +221,22 @@ export default function ResultScreen() {
                   {!!l.offer.store && l.offer.isPromo && (
                     <Text style={[s.muted, { fontSize: 11 }]}>{t("inStore", { store: l.offer.store })}</Text>
                   )}
+                  {broHints.has(l.productId) && (() => {
+                    const o = broHints.get(l.productId)!;
+                    return (
+                      <View style={{ marginTop: 8, backgroundColor: "#FFF8E8", borderRadius: 12, padding: 10 }}>
+                        <Text style={[s.body, { fontSize: 13 }]}>
+                          {t("brochureHint", {
+                            chain: st.brochures?.chains[o.c]?.name ?? "",
+                            product: o.n,
+                            price: o.p != null ? m(o.p) : "",
+                            card: o.k ? t("brochureCard") : "",
+                            valid: t("validTo", { date: shortDate(o.t) }),
+                          })}
+                        </Text>
+                      </View>
+                    );
+                  })()}
                   {deal && (
                     <View style={{ marginTop: 8, backgroundColor: C.promoSoft, borderRadius: 12, padding: 10, gap: 6 }}>
                       <Text style={{ color: C.promo, fontWeight: "800", fontSize: 12, letterSpacing: 0.5 }}>🔥 {t("superDeal").toUpperCase()}</Text>
