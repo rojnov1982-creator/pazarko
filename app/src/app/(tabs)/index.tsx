@@ -5,18 +5,18 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AreaPicker } from "../AreaPicker";
-import { DataStatus, Icon, itemName, PinBadge, PinInfo, ScreenHeader } from "../components";
-import { ANALYTICS_AVAILABLE } from "../lib/analytics";
-import { shortDate } from "../lib/brochures";
-import { IS_DEMO } from "../lib/data";
-import { brandLabel, OWN_BRAND, productDetail, productName, splitName } from "../lib/i18n";
-import { itemKey } from "../lib/pins";
-import { brandsInCity, cheapest } from "../lib/prices";
-import { PRESETS, useStore } from "../lib/store";
-import type { BasketItem } from "../lib/types";
-import { usePlan } from "../lib/usePlan";
-import { Button, C, Card, DemoBanner, H, money, productEmoji, PromoBadge, qtyLabel, Stepper, useK, useS } from "../ui";
+import { AreaPicker } from "../../AreaPicker";
+import { DataStatus, Icon, itemName, PinBadge, PinInfo, ScreenHeader } from "../../components";
+import { ANALYTICS_AVAILABLE } from "../../lib/analytics";
+import { shortDate } from "../../lib/brochures";
+import { IS_DEMO } from "../../lib/data";
+import { brandLabel, OWN_BRAND, productDetail, productName, splitName } from "../../lib/i18n";
+import { itemKey } from "../../lib/pins";
+import { brandsInCity, cheapest } from "../../lib/prices";
+import { PRESETS, useStore } from "../../lib/store";
+import type { BasketItem } from "../../lib/types";
+import { usePlan } from "../../lib/usePlan";
+import { Button, C, Card, DemoBanner, H, money, productEmoji, PromoBadge, qtyLabel, Stepper, useK, useS } from "../../ui";
 
 /** «гр. София» → «София» / «Sofia» */
 const cityLabel = (name: string, nameEn: string, lang: string) =>
@@ -176,7 +176,9 @@ export default function BasketScreen() {
                 </Text>
               </View>
             ) : (
-              <Text style={[s.btnText, { fontWeight: "500", fontSize: 15 * kf }]}>{t("calculating")}</Text>
+              <Text style={[s.btnText, { fontWeight: "500", fontSize: 15 * kf }]}>
+                {st.areaStatus === "error" || st.areaStatus === "empty" || st.error ? t("noData") : t("calculating")}
+              </Text>
             )}
           </Pressable>
         </View>
@@ -316,7 +318,13 @@ function BasketRow({ b, onBrand, status, excluded }: { b: BasketItem; onBrand: (
             </>
           ) : (
             <Text style={[s.muted, { color: c ? C.green : st.city ? C.promo : C.muted, fontWeight: "700", fontSize: 16 * kf }]}>
-              {!st.city ? t("loading") : c ? `${t("from", { price: money(c.price, lang) })}${p?.byWeight ? t("perKg") : ""}` : t("noPrice")}
+              {!st.city
+                ? st.areaStatus === "error" || st.areaStatus === "empty" || st.error
+                  ? "—"
+                  : t("loading")
+                : c
+                  ? `${t("from", { price: money(c.price, lang) })}${p?.byWeight ? t("perKg") : ""}`
+                  : t("noPrice")}
             </Text>
           )}
           {!!b.brand && easy && <Text style={s.muted}>🏷️ {brandLabel(b.brand, t)}</Text>}

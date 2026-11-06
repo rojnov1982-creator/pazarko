@@ -3,16 +3,16 @@
 import { useMemo, useState } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { track } from "../lib/analytics";
-import { IS_DEMO } from "../lib/data";
-import { excludedIndexes } from "../lib/prices";
-import { useStore } from "../lib/store";
-import { BrochureList } from "../BrochureList";
-import { C, Chip, DemoBanner, money, productEmoji, qtyLabel, s, Stepper } from "../ui";
-import { ScreenHeader } from "../components";
-import { shortDate } from "../lib/brochures";
-import { productName, splitName } from "../lib/i18n";
-import { itemKey, pinFromDeal } from "../lib/pins";
+import { track } from "../../lib/analytics";
+import { IS_DEMO } from "../../lib/data";
+import { excludedIndexes } from "../../lib/prices";
+import { useStore } from "../../lib/store";
+import { BrochureList } from "../../BrochureList";
+import { C, Chip, DemoBanner, money, productEmoji, qtyLabel, s, Stepper } from "../../ui";
+import { ScreenHeader } from "../../components";
+import { shortDate } from "../../lib/brochures";
+import { productName, splitName } from "../../lib/i18n";
+import { itemKey, pinFromDeal } from "../../lib/pins";
 
 export default function DealsScreen() {
   const st = useStore();

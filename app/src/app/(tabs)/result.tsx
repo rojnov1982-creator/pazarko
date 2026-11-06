@@ -6,19 +6,19 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { DataStatus, Icon, itemName, PurchaseLine, ScreenHeader } from "../components";
-import { AreaPicker } from "../AreaPicker";
-import { track } from "../lib/analytics";
-import { bestBrochureOffer, shortDate, visibleChains } from "../lib/brochures";
-import { IS_DEMO } from "../lib/data";
-import type { Plan } from "../lib/optimize";
-import { itemKey } from "../lib/pins";
-import { FREE_MAX_STORES } from "../lib/premium";
-import { bestPromo } from "../lib/prices";
-import { useStore } from "../lib/store";
-import type { BrochureOffer, CityFile } from "../lib/types";
-import { usePlan } from "../lib/usePlan";
-import { Button, C, Card, Chip, DemoBanner, H, mono, money, useK, useS } from "../ui";
+import { DataStatus, Icon, itemName, PurchaseLine, ScreenHeader } from "../../components";
+import { AreaPicker } from "../../AreaPicker";
+import { track } from "../../lib/analytics";
+import { bestBrochureOffer, shortDate, visibleChains } from "../../lib/brochures";
+import { IS_DEMO } from "../../lib/data";
+import type { Plan } from "../../lib/optimize";
+import { itemKey } from "../../lib/pins";
+import { FREE_MAX_STORES } from "../../lib/premium";
+import { bestPromo } from "../../lib/prices";
+import { useStore } from "../../lib/store";
+import type { BrochureOffer, CityFile } from "../../lib/types";
+import { usePlan } from "../../lib/usePlan";
+import { Button, C, Card, Chip, DemoBanner, H, mono, money, useK, useS } from "../../ui";
 
 type Option = { id: string; kind: "cheapest" | "one" | "alt"; plan: Plan };
 
@@ -128,7 +128,9 @@ export default function PlanScreen() {
         <ScrollView contentContainerStyle={s.pad}>
           {header}
           <Card style={{ gap: 10 }}>
-            <Text style={s.body}>{!basket.length ? t("emptyBasket") : t("calculating")}</Text>
+            <Text style={s.body}>
+              {!basket.length ? t("emptyBasket") : st.areaStatus === "error" || st.areaStatus === "empty" || st.error ? t("noData") : t("calculating")}
+            </Text>
             {!basket.length && <Button title={t("toBasket")} onPress={() => router.push("/")} />}
           </Card>
         </ScrollView>

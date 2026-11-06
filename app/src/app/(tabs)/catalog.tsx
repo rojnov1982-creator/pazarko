@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { FlatList, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ScreenHeader } from "../components";
-import { cheapest, excludedIndexes } from "../lib/prices";
-import { useStore } from "../lib/store";
-import { categoryName, productDetail, productName, splitName } from "../lib/i18n";
-import { C, CAT_EMOJI, Chip, money, productEmoji, PromoBadge, qtyLabel, Stepper, useK, useS } from "../ui";
+import { ScreenHeader } from "../../components";
+import { cheapest, excludedIndexes } from "../../lib/prices";
+import { useStore } from "../../lib/store";
+import { categoryName, productDetail, productName, splitName } from "../../lib/i18n";
+import { C, CAT_EMOJI, Chip, money, productEmoji, PromoBadge, qtyLabel, Stepper, useK, useS } from "../../ui";
 
 const fold = (t: string) => t.toLowerCase().replace(/ъ/g, "а").replace(/ё/g, "е");
 
