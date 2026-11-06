@@ -1,16 +1,16 @@
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { track } from "../lib/analytics";
 import { bestBrochureOffer, shortDate, todayIso, visibleChains } from "../lib/brochures";
 import { IS_DEMO } from "../lib/data";
 import { brandLabel, productName, splitName } from "../lib/i18n";
-import { optimizeBasket } from "../lib/optimize";
+import { optimizeBasket, type Plan } from "../lib/optimize";
 import { FREE_MAX_STORES } from "../lib/premium";
 import { bestPromo, excludedIndexes } from "../lib/prices";
 import { useStore } from "../lib/store";
-import type { BrochureOffer } from "../lib/types";
+import type { BrochureOffer, CityFile } from "../lib/types";
 import { Button, C, Card, Chip, DemoBanner, H, mono, money, productEmoji, PromoBadge, qtyLabel, useK, useS } from "../ui";
 
 export default function ResultScreen() {
@@ -113,7 +113,7 @@ export default function ResultScreen() {
         <ScrollView contentContainerStyle={[s.pad, { paddingBottom: 32 }]}>
           <Text style={s.title}>{t("tabSavings")}</Text>
           <View style={{ backgroundColor: C.green, borderRadius: 22, padding: 20, gap: 6 }}>
-            <Text style={{ color: "#CFE6D6", fontWeight: "700", fontSize: 18 * kf }}>{t("easyTotal")}</Text>
+            <Text style={{ color: "#CFE6D6", fontWeight: "700", fontSize: 18 * kf }}>{t("option1")}</Text>
             <Text style={{ color: "#fff", fontSize: 44 * kf, fontWeight: "800", fontFamily: mono }}>{m(plan.total)}</Text>
             {bestSingle && savings > 0.004 && (
               <Text style={{ color: "#fff", fontSize: 18 * kf }}>{t("easySaving", { amount: m(savings), chain: chainName(bestSingle.chain) })}</Text>
@@ -124,29 +124,10 @@ export default function ResultScreen() {
               </Text>
             )}
           </View>
-          {plan.stores.map((sp, n) => (
-            <Card key={sp.chain} style={{ gap: 12 }}>
-              <Text style={[s.body, { fontWeight: "800", fontSize: 22 * kf }]}>
-                {n + 1}. {t("easyBuyIn", { chain: chainName(sp.chain) })}
-              </Text>
-              {sp.lines.map((l) => {
-                const p = st.productById.get(l.productId);
-                return (
-                  <View key={l.productId} style={[s.row, { alignItems: "flex-start", gap: 12 }]}>
-                    <Text style={{ fontSize: 28 * kf }}>{productEmoji(p)}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[s.body, { fontWeight: "700" }]}>{name(l.productId)}</Text>
-                      <Text style={s.muted}>
-                        {qtyLabel(l.qty, !!p?.byWeight, t, lang)} × {m(l.offer.price)}
-                      </Text>
-                    </View>
-                    <Text style={[s.body, s.num, { fontWeight: "800" }]}>{m(l.cost)}</Text>
-                  </View>
-                );
-              })}
-              <View style={s.divider} />
-              <Text style={[s.body, s.num, { fontWeight: "800", textAlign: "right" }]}>{m(sp.subtotal)}</Text>
-            </Card>
+          <PlanStores plan={plan} city={city} />
+          {result.alternatives.length > 0 && <H style={{ marginTop: 8 }}>{t("otherOptions")}</H>}
+          {result.alternatives.map((a, i) => (
+            <AltPlan key={i} n={i + 2} plan={a} best={plan} city={city} />
           ))}
         </ScrollView>
       </SafeAreaView>
@@ -324,6 +305,11 @@ export default function ResultScreen() {
           </Card>
         ))}
 
+        {result.alternatives.length > 0 && <H style={{ marginTop: 6 }}>{t("otherOptions")}</H>}
+        {result.alternatives.map((a, i) => (
+          <AltPlan key={i} n={i + 2} plan={a} best={plan} city={city} />
+        ))}
+
         {/* Сравнение */}
         <H style={{ marginTop: 6 }}>{t("ifOneStore")}</H>
         <Card style={{ gap: 14 }}>
@@ -357,6 +343,84 @@ export default function ResultScreen() {
         </Card>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+/** Что купить в каком магазине: по карточке на магазин, крупно */
+function PlanStores({ plan, city }: { plan: Plan; city: CityFile }) {
+  const st = useStore();
+  const { t, lang } = st;
+  const s = useS();
+  const kf = useK();
+  const m = (n: number) => money(n, lang);
+  const name = (id: number) => splitName(productName(st.productById.get(id), lang), lang)[0];
+  return (
+    <>
+      {plan.stores.map((sp, n) => (
+        <Card key={sp.chain} style={{ gap: 12 }}>
+          <Text style={[s.body, { fontWeight: "800", fontSize: 22 * kf }]}>
+            {plan.stores.length > 1 ? `${n + 1}. ` : ""}
+            {t("easyBuyIn", { chain: city.chains[sp.chain]?.name ?? "?" })}
+          </Text>
+          {sp.lines.map((l) => {
+            const p = st.productById.get(l.productId);
+            return (
+              <View key={l.productId} style={[s.row, { alignItems: "flex-start", gap: 12 }]}>
+                <Text style={{ fontSize: 28 * kf }}>{productEmoji(p)}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.body, { fontWeight: "700" }]}>{name(l.productId)}</Text>
+                  <Text style={s.muted}>
+                    {qtyLabel(l.qty, !!p?.byWeight, t, lang)} × {m(l.offer.price)}
+                  </Text>
+                </View>
+                <Text style={[s.body, s.num, { fontWeight: "800" }]}>{m(l.cost)}</Text>
+              </View>
+            );
+          })}
+          <View style={s.divider} />
+          <Text style={[s.body, s.num, { fontWeight: "800", textAlign: "right" }]}>{m(sp.subtotal)}</Text>
+        </Card>
+      ))}
+    </>
+  );
+}
+
+/** Вариант 2 / 3: сумма, магазины и разница с лучшим; список раскрывается по нажатию */
+function AltPlan({ n, plan, best, city }: { n: number; plan: Plan; best: Plan; city: CityFile }) {
+  const st = useStore();
+  const { t, lang } = st;
+  const s = useS();
+  const kf = useK();
+  const [open, setOpen] = useState(false);
+  const m = (x: number) => money(x, lang);
+  const more = Math.round((plan.total - best.total) * 100) / 100;
+  const name = (id: number) => splitName(productName(st.productById.get(id), lang), lang)[0];
+  return (
+    <View style={{ gap: 10 }}>
+      <Pressable
+        onPress={() => {
+          if (!open) track("option_opened", { option: n, stores: plan.stores.length, more });
+          setOpen(!open);
+        }}
+      >
+        <Card style={{ gap: 6 }}>
+          <View style={[s.row, { justifyContent: "space-between", alignItems: "flex-start" }]}>
+            <Text style={[s.body, { fontWeight: "800", fontSize: 20 * kf, flex: 1 }]}>{t("optionN", { n })}</Text>
+            <Text style={[s.body, s.num, { fontWeight: "800", fontSize: 22 * kf }]}>{m(plan.total)}</Text>
+          </View>
+          <Text style={[s.body, { fontWeight: "600" }]}>{plan.stores.map((x) => city.chains[x.chain]?.name ?? "?").join(" + ")}</Text>
+          {plan.missing.length > best.missing.length ? (
+            <Text style={[s.muted, { color: C.promo }]}>{t("notFound", { list: plan.missing.map(name).join(", ") })}</Text>
+          ) : more > 0.004 ? (
+            <Text style={[s.muted, { color: C.promo, fontWeight: "700" }]}>{t("optionMore", { amount: m(more) })}</Text>
+          ) : null}
+          <Text style={{ color: C.green, fontWeight: "800", fontSize: 16 * kf, marginTop: 4 }}>
+            {open ? t("optionHide") : t("optionShow")}
+          </Text>
+        </Card>
+      </Pressable>
+      {open && <PlanStores plan={plan} city={city} />}
+    </View>
   );
 }
 

@@ -28,7 +28,7 @@ pazarko/
 │   │                    result (Спестяване), settings (Настройки), _layout
 │   ├── src/lib/         optimize.ts (алгоритм), data.ts, prices.ts, area.ts, store.tsx, i18n.ts, premium.ts, types.ts, analytics.ts
 │   ├── src/AreaPicker.tsx, Paywall.tsx, ui.tsx
-│   ├── tests/optimize.test.ts, brochures.test.ts   (10 тестов, `npm test`)
+│   ├── tests/optimize.test.ts, brochures.test.ts   (11 тестов, `npm test`)
 │   ├── app.json, eas.json, AGENTS.md (правила работы с Expo для ИИ)
 ├── data-pipeline/       Node: kolkostruva.bg → компактные JSON
 │   ├── ingest.mjs       скачивание и обработка дня
@@ -128,6 +128,10 @@ Supabase Storage (43 дня с 24.09, подтверждено в production). �
 в Настройках (`settings.easy`). В нём: всё на 20% крупнее (`useS()`/`useK()` в `src/ui.tsx`), вкладка «Оферти» скрыта,
 в корзине нет марок и района, «Спестяване» — общая сумма, экономия одной фразой и «В <сеть> купете: …» по магазинам,
 в Настройках только режим, язык и приватность. Значки — свой у каждого товара (`PRODUCT_EMOJI`), не у раздела.
+
+**Варианты 2 и 3 (с 06.11.2026):** `optimizeBasket` хранит 3 лучших плана с разным набором реально использованных сетей
+(`result.alternatives`, до 2 штук, по возрастанию цены, в пределах лимита магазинов). В «Спестяване» (оба режима) —
+«Други варианти»: сумма, магазины, «с X € по-скъпо», список раскрывается по нажатию (событие `option_opened`).
 
 **Языки:** `src/lib/i18n.ts`, bg/en по языку телефона, переключатель в настройках; названия групп переведены, названия
 товаров сетей как в данных КЗП.

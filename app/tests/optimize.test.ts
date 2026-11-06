@@ -109,3 +109,25 @@ test("район: план считается только по выбранны
   for (const s of r.plan.stores) assert.ok(s.chain >= 0 && s.chain < 3);
   assert.equal(r.plan.missing.length, 0);
 });
+
+test("варианты 2 и 3: другие наборы магазинов, не дешевле лучшего, по возрастанию цены", () => {
+  for (let n = 0; n < 30; n++) {
+    const basket = randomBasket(3 + (n % 8));
+    for (const maxStores of [1, 2, 3, 0]) {
+      const r = optimizeBasket(city, basket, { maxStores, usePromo: true, extraStoreCost: 0 });
+      const key = (p: { stores: { chain: number }[] }) => p.stores.map((s) => s.chain).sort((a, b) => a - b).join(",");
+      const keys = [r.plan, ...r.alternatives].map(key);
+      assert.equal(new Set(keys).size, keys.length, "наборы магазинов не повторяются");
+      assert.ok(r.alternatives.length <= 2);
+      let prev = r.plan;
+      for (const a of r.alternatives) {
+        if (maxStores > 0) assert.ok(a.stores.length <= maxStores, "вариант не превышает лимит магазинов");
+        assert.ok(
+          a.missing.length > prev.missing.length || (a.missing.length === prev.missing.length && a.total >= prev.total - 0.011),
+          "варианты идут по возрастанию",
+        );
+        prev = a;
+      }
+    }
+  }
+});

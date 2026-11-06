@@ -67,6 +67,8 @@ export interface SingleStoreResult {
 
 export interface OptimizeResult {
   plan: Plan;
+  /** следующие по цене варианты с другим набором магазинов (до 2): «вариант 2», «вариант 3» */
+  alternatives: Plan[];
   /** абсолютный минимум (каждый товар в самой дешёвой сети, без лимита магазинов) */
   ideal: Plan;
   singles: SingleStoreResult[];
@@ -181,27 +183,41 @@ export function optimizeBasket(city: CityFile, basket: BasketItem[], opts: Optim
     candidates = [...pick].slice(0, 24);
   }
 
-  let best: ReturnType<typeof evaluate> | null = null;
-  let bestScore = [Infinity, Infinity];
+  // Перебор: храним 3 лучших варианта с РАЗНЫМ набором реально использованных сетей
+  type Ev = ReturnType<typeof evaluate>;
+  const better = (a: number[], b: number[]) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1] - 1e-9);
+  const top: { key: string; score: number[]; ev: Ev }[] = [];
+  const consider = (ev: Ev) => {
+    if (!ev.used.size) return;
+    const key = [...ev.used].sort((a, b) => a - b).join(",");
+    const score = [ev.missing.length, ev.total + opts.extraStoreCost * Math.max(0, ev.used.size - 1)];
+    const same = top.findIndex((x) => x.key === key);
+    if (same >= 0) {
+      if (!better(score, top[same].score)) return;
+      top.splice(same, 1);
+    }
+    top.push({ key, score, ev });
+    top.sort((a, b) => (better(a.score, b.score) ? -1 : better(b.score, a.score) ? 1 : 0));
+    if (top.length > 3) top.length = 3;
+  };
   let evaluated = 0;
-  if (opts.maxStores <= 0 && opts.extraStoreCost <= 0) {
-    best = ideal; // без лимита и штрафа оптимум — каждый товар в самой дешёвой сети
-    evaluated = 1;
-  } else {
-    const maxK = Math.min(k, candidates.length, 4);
-    for (let size = 1; size <= maxK; size++) {
-      for (const combo of combinations(candidates, size)) {
-        evaluated++;
-        const ev = evaluate(combo, items, offers);
-        const score = [ev.missing.length, ev.total + opts.extraStoreCost * Math.max(0, ev.used.size - 1)];
-        if (score[0] < bestScore[0] || (score[0] === bestScore[0] && score[1] < bestScore[1] - 1e-9)) {
-          bestScore = score;
-          best = ev;
-        }
-      }
+  const unlimited = opts.maxStores <= 0 && opts.extraStoreCost <= 0;
+  const maxK = Math.min(k, candidates.length, 4);
+  for (let size = 1; size <= maxK; size++) {
+    for (const combo of combinations(candidates, size)) {
+      evaluated++;
+      consider(evaluate(combo, items, offers));
     }
   }
+  // без лимита и штрафа оптимум — каждый товар в самой дешёвой сети (может быть больше 4 магазинов)
+  if (unlimited) consider(ideal);
+  const best: Ev | null = unlimited ? ideal : top[0]?.ev ?? null;
+  const bestKey = best ? [...best.used].sort((a, b) => a - b).join(",") : "";
   const plan = best ? toPlan(items, best) : { stores: [], total: 0, missing: items.map((b) => b.productId) };
+  const alternatives = top
+    .filter((x) => x.key !== bestKey)
+    .slice(0, 2)
+    .map((x) => toPlan(items, x.ev));
 
   // Сравнение с каждой сетью: переплата считается на тех товарах, что в ней есть
   const planCost = new Map<number, number>();
@@ -221,6 +237,7 @@ export function optimizeBasket(city: CityFile, basket: BasketItem[], opts: Optim
 
   return {
     plan,
+    alternatives,
     ideal: toPlan(items, ideal),
     singles,
     bestSingle,
