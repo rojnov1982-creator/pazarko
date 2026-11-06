@@ -23,18 +23,21 @@ import {
 } from "../../components";
 import { AreaPicker } from "../../AreaPicker";
 import { track } from "../../lib/analytics";
+import { shareText, shoppingText } from "../../lib/share";
 import {
   bestBrochureOffer,
   shortDate,
   visibleChains,
+  offerStatus,
 } from "../../lib/brochures";
 import { IS_DEMO } from "../../lib/data";
 import type { Plan } from "../../lib/optimize";
-import { itemKey } from "../../lib/pins";
+import { isPerKgOffer, itemKey } from "../../lib/pins";
+import { offerMatches } from "../../lib/favorites";
 import { FREE_MAX_STORES } from "../../lib/premium";
 import { bestPromo } from "../../lib/prices";
 import { useStore } from "../../lib/store";
-import type { BrochureOffer, CityFile } from "../../lib/types";
+import type { BasketItem, BrochureOffer, CityFile } from "../../lib/types";
 import { usePlan } from "../../lib/usePlan";
 import {
   Button,
@@ -46,6 +49,7 @@ import {
   money,
   useK,
   useS,
+  qtyLabel,
 } from "../../ui";
 
 type Option = { id: string; kind: "cheapest" | "one" | "alt"; plan: Plan };
@@ -136,7 +140,8 @@ export default function PlanScreen() {
     for (const sp of sel.plan.stores)
       for (const l of sp.lines) {
         const b = byKey.get(l.key);
-        if (!b || b.pin) continue;
+        // любимому продукту другую марку не предлагаем
+        if (!b || b.pin || b.fav) continue;
         const o = bestBrochureOffer(
           st.brochures,
           l.productId,
@@ -242,7 +247,10 @@ export default function PlanScreen() {
                   : t("calculating")}
             </Text>
             {!basket.length && (
-              <Button title={t("toBasket")} onPress={() => router.push("/basket")} />
+              <Button
+                title={t("toBasket")}
+                onPress={() => router.push("/basket")}
+              />
             )}
           </Card>
         </ScrollView>
@@ -274,30 +282,82 @@ export default function PlanScreen() {
     )
       ? `${t("optAlt")} · ${o.plan.stores.length}`
       : storesLabel(o.plan.stores.length);
-  // снимок плана для режима покупок: цены в нём больше не меняются
-  const startShopping = () => {
-    st.startShopping({
+  // снимок плана для режима покупок и «Сподели»: цены в нём больше не меняются;
+  // позиции без цены (свои строки, любимые без группы КЗП) — отдельным блоком «Други»
+  // без цены: свои строки и любимые, которых нет ни в брошюрах, ни (точно этим товаром) в КЗП
+  const noPrice = [
+    ...P.unpriced,
+    ...plan.missing
+      .filter((k) => k.startsWith("fav:"))
+      .map((k) => byKey.get(k)!)
+      .filter(Boolean),
+  ];
+  // любимый без цены в плане: подходящая акция брошюры, которую план не смог посчитать (напр. «насипна», за кг)
+  const favOfferText = (b: BasketItem) => {
+    if (!b.fav || !b.words || !st.brochures) return "";
+    const o = st.brochures.offers.find(
+      (x) => offerStatus(x, today) === "now" && offerMatches(b.words!, x),
+    );
+    return o
+      ? `📰 ${st.brochures.chains[o.c]?.name ?? ""} · ${m(o.p ?? 0)}${isPerKgOffer(o) ? t("perKg") : ""} · ${t("validTo", { date: shortDate(o.t) })}`
+      : "";
+  };
+  const buildList = () => {
+    const stores = plan.stores.map((sp) => ({
+      chain: chainName(sp.chain),
+      label: city.chains[sp.chain]?.label,
+      subtotal: sp.subtotal,
+      lines: sp.lines.map((l) => {
+        const tx = lineTexts(l, byKey.get(l.key), st);
+        return {
+          key: `${sp.chain}|${l.key}`,
+          name: tx.group,
+          detail: [tx.what, tx.qtyText, tx.brochureNote]
+            .filter(Boolean)
+            .join(" · "),
+          cost: l.cost,
+          emoji: tx.emoji,
+          card: !!(l.offer.brochure?.card || byKey.get(l.key)?.pin?.card),
+        };
+      }),
+    }));
+    if (noPrice.length)
+      stores.push({
+        chain: t("otherStore"),
+        label: undefined,
+        subtotal: 0,
+        lines: noPrice.map((b) => ({
+          key: `other|${itemKey(b)}`,
+          name: b.name ?? itemName(b, lang, st.productById),
+          detail: [favOfferText(b), qtyLabel(b.qty, false, t, lang)]
+            .filter(Boolean)
+            .join(" · "),
+          cost: 0,
+          emoji: b.fav ? "❤️" : "📝",
+          card: false,
+        })),
+      });
+    return {
       pricesDate: st.index?.date ?? "",
       total: plan.total,
       approx: plan.approx,
-      stores: plan.stores.map((sp) => ({
-        chain: chainName(sp.chain),
-        label: city.chains[sp.chain]?.label,
-        subtotal: sp.subtotal,
-        lines: sp.lines.map((l) => {
-          const tx = lineTexts(l, byKey.get(l.key), st);
-          return {
-            key: `${sp.chain}|${l.key}`,
-            name: tx.group,
-            detail: [tx.what, tx.qtyText, tx.brochureNote].filter(Boolean).join(" · "),
-            cost: l.cost,
-            emoji: tx.emoji,
-          };
-        }),
-      })),
-    });
+      stores,
+    };
+  };
+  const startShopping = () => {
+    st.startShopping(buildList());
     router.push("/shopping");
   };
+  const share = () =>
+    shareText(
+      shoppingText(
+        buildList(),
+        t("shareTitle"),
+        (amount) => t("shareTotal", { amount }),
+        m,
+      ),
+      "plan",
+    );
 
   // 3) экономия и её база
   const explain: string[] = [];
@@ -535,6 +595,7 @@ export default function PlanScreen() {
                   !easy &&
                   b &&
                   !b.pin &&
+                  !b.fav &&
                   b.brand &&
                   settings.showDeals &&
                   settings.usePromo
@@ -619,7 +680,7 @@ export default function PlanScreen() {
           </Card>
         ))}
 
-        {plan.missing.length > 0 && (
+        {plan.missing.some((k) => !k.startsWith("fav:")) && (
           <Card
             style={{
               gap: 8,
@@ -630,16 +691,63 @@ export default function PlanScreen() {
             <Text style={[s.body, { fontWeight: "800" }]}>
               ⚠️ {t("missingTitle")}
             </Text>
-            {plan.missing.map((k) => (
-              <Text key={k} style={s.body}>
-                • {name(k)}
-                {reasonFor(k) ? (
-                  <Text style={s.muted}> — {reasonFor(k)}</Text>
+            {plan.missing
+              .filter((k) => !k.startsWith("fav:"))
+              .map((k) => (
+                <Text key={k} style={s.body}>
+                  • {name(k)}
+                  {reasonFor(k) ? (
+                    <Text style={s.muted}> — {reasonFor(k)}</Text>
+                  ) : null}
+                </Text>
+              ))}
+          </Card>
+        )}
+
+        {noPrice.length > 0 && (
+          <Card style={{ gap: 6 }}>
+            <Text style={[s.body, { fontWeight: "800" }]}>
+              📝 {t("unpricedTitle")}
+            </Text>
+            {noPrice.map((b) => (
+              <Text key={itemKey(b)} style={s.body}>
+                • {b.fav ? "❤️ " : ""}
+                {b.name}
+                {b.qty > 1 ? ` × ${b.qty}` : ""}
+                {favOfferText(b) ? (
+                  <Text style={{ color: C.promo, fontWeight: "700" }}>
+                    {"\n  "}
+                    {favOfferText(b)}
+                  </Text>
                 ) : null}
               </Text>
             ))}
+            <Text style={s.muted}>{t("unpricedNote")}</Text>
           </Card>
         )}
+
+        <Pressable
+          onPress={share}
+          accessibilityRole="button"
+          style={[
+            s.row,
+            {
+              gap: 8,
+              justifyContent: "center",
+              minHeight: 50 * kf,
+              borderRadius: 14,
+              borderWidth: 1.5,
+              borderColor: C.green,
+            },
+          ]}
+        >
+          <Icon name="share-outline" size={20 * kf} color={C.green} />
+          <Text
+            style={{ color: C.green, fontWeight: "800", fontSize: 17 * kf }}
+          >
+            {t("share")}
+          </Text>
+        </Pressable>
 
         {/* 5) Подробное сравнение: полные и неполные корзины раздельно (не в «Лесен режим») */}
         {!easy && (

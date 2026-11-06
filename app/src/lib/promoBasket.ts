@@ -48,16 +48,38 @@ type Item = { g: number; o: BrochureOffer; saving: number; disc: number };
 
 const unitPrice = (o: BrochureOffer) => o.rp ?? o.p!;
 
-export function weeklyPromoBasket(bro: BrochureFile | null, visible: boolean[], today: string, opts: Options = {}): WeeklyPromo | null {
-  const { maxChains = 2, maxItems = 12, hasGroup, family = (id: number) => String(id) } = opts;
+export function weeklyPromoBasket(
+  bro: BrochureFile | null,
+  visible: boolean[],
+  today: string,
+  opts: Options = {},
+): WeeklyPromo | null {
+  const {
+    maxChains = 2,
+    maxItems = 12,
+    hasGroup,
+    family = (id: number) => String(id),
+  } = opts;
   if (!bro) return null;
   // группа → сеть → лучшее предложение (самое дешёвое за эталонную фасовку)
   const best = new Map<number, Map<number, BrochureOffer>>();
   for (const o of bro.offers) {
-    if (!o.g || !isPromoBasketGroup(o.g) || (hasGroup && !hasGroup(o.g)) || !visible[o.c]) continue;
-    if (o.p == null || o.r == null || o.rp == null || o.r <= o.p || o.m) continue;
+    if (
+      !o.g ||
+      !isPromoBasketGroup(o.g) ||
+      (hasGroup && !hasGroup(o.g)) ||
+      !visible[o.c]
+    )
+      continue;
+    if (o.p == null || o.r == null || o.rp == null || o.r <= o.p || o.m)
+      continue;
     if (offerStatus(o, today) !== "now") continue;
-    if (1 - o.p / o.r < MIN_DISCOUNT || o.p > MAX_PACK_PRICE || o.p / o.rp > MAX_PACK_RATIO) continue;
+    if (
+      1 - o.p / o.r < MIN_DISCOUNT ||
+      o.p > MAX_PACK_PRICE ||
+      o.p / o.rp > MAX_PACK_RATIO
+    )
+      continue;
     const byChain = best.get(o.g) ?? new Map<number, BrochureOffer>();
     const cur = byChain.get(o.c);
     if (!cur || unitPrice(o) < unitPrice(cur)) byChain.set(o.c, o);
@@ -80,7 +102,9 @@ export function weeklyPromoBasket(bro: BrochureFile | null, visible: boolean[], 
       const cur = byFamily.get(f);
       if (!cur || item.disc > cur.disc) byFamily.set(f, item);
     }
-    return [...byFamily.values()].sort((a, b) => b.disc - a.disc).slice(0, maxItems);
+    return [...byFamily.values()]
+      .sort((a, b) => b.disc - a.disc)
+      .slice(0, maxItems);
   };
 
   // оценка набора: сумма скидок в процентах — больше хороших акций, а не одна дорогая покупка
@@ -96,12 +120,20 @@ export function weeklyPromoBasket(bro: BrochureFile | null, visible: boolean[], 
   };
   for (let i = 0; i < chains.length; i++) {
     consider([chains[i]]);
-    if (maxChains >= 2) for (let j = i + 1; j < chains.length; j++) consider([chains[i], chains[j]]);
+    if (maxChains >= 2)
+      for (let j = i + 1; j < chains.length; j++)
+        consider([chains[i], chains[j]]);
   }
 
   const items = pick(bestSet);
   if (items.length < 3) return null;
-  const picks = items.map((x) => ({ offer: x.o, pin: pinFromBrochure(x.o, bro), productId: x.g, saving: x.saving, disc: x.disc }));
+  const picks = items.map((x) => ({
+    offer: x.o,
+    pin: pinFromBrochure(x.o, bro),
+    productId: x.g,
+    saving: x.saving,
+    disc: x.disc,
+  }));
   const r2 = (n: number) => Math.round(n * 100) / 100;
   return {
     chains: [...new Set(picks.map((p) => p.offer.c))],

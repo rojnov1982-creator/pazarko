@@ -51,7 +51,17 @@ export interface IndexFile {
  *  цена пачки (обычная)?, цена пачки (с акцией)?]
  * Для групп с разными фасовками цены приведены к эталонной фасовке, а цена пачки — реальная цена на полке.
  */
-export type PriceTuple = [number, number, string, number, 0 | 1, string, string, number?, number?];
+export type PriceTuple = [
+  number,
+  number,
+  string,
+  number,
+  0 | 1,
+  string,
+  string,
+  number?,
+  number?,
+];
 
 export type ChainKind = "grocery" | "pharmacy" | "other";
 
@@ -98,7 +108,16 @@ export interface CityFile {
 }
 
 /** [группа, сеть, товар, цена на полке, цена по акции, скидка %, магазинов, марка] */
-export type DealTuple = [number, number, string, number, number, number, number, string];
+export type DealTuple = [
+  number,
+  number,
+  string,
+  number,
+  number,
+  number,
+  number,
+  string,
+];
 
 /**
  * Конкретное предложение, закреплённое пользователем (акция из брошюры или «Супер оферта» дня).
@@ -138,6 +157,12 @@ export interface BasketItem {
   brand?: string;
   /** закреплённое предложение; productId — группа КЗП (0, если группы нет) */
   pin?: PinnedOffer;
+  /** любимый продукт (Favorite.id): в брошюрах подходят только предложения со всеми словами `words` */
+  fav?: string;
+  words?: string[];
+  /** своя строка без цены («Тоалетна хартия») или любимый без группы КЗП; id — для ключа */
+  name?: string;
+  id?: string;
 }
 
 /** Брошюры сетей (data-pipeline/brochures.mjs → brochures.json) */

@@ -372,6 +372,9 @@ export function OfferCard(props: {
   condition?: string;
   /** проверка по ценам КЗП: «обичайно X € → реално −N%» */
   check?: { text: string; tone: "good" | "weak" | "plain" };
+  /** «♡ Следи»: добавить в любимые продукты */
+  onFollow?: () => void;
+  followed?: boolean;
   qty?: number;
   qtyLabel?: string;
   onAdd?: () => void;
@@ -505,6 +508,26 @@ export function OfferCard(props: {
             {p.check.text}
           </Text>
         </View>
+      )}
+      {!!p.onFollow && (
+        <Pressable
+          onPress={p.onFollow}
+          disabled={p.followed}
+          accessibilityRole="button"
+          accessibilityState={{ selected: !!p.followed }}
+          accessibilityLabel={`${p.followed ? t("favFollowing") : t("favFollow")}: ${p.title}`}
+          hitSlop={6}
+          style={[s.row, { gap: 6, alignSelf: "flex-start", minHeight: 36 }]}
+        >
+          <Icon
+            name={p.followed ? "heart" : "heart-outline"}
+            size={20 * k}
+            color={C.promo}
+          />
+          <Text style={{ color: C.promo, fontWeight: "800", fontSize: 15 * k }}>
+            {p.followed ? t("favFollowing") : t("favFollow")}
+          </Text>
+        </Pressable>
       )}
       {p.qty != null ? (
         <View
@@ -734,6 +757,7 @@ export function itemName(
 ) {
   if (!b) return "";
   if (b.pin) return b.pin.name;
+  if (b.name) return b.name;
   return splitName(
     productName(productById.get(b.productId) as never, lang),
     lang,

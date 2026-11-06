@@ -17,7 +17,12 @@ export type Feature =
   | "nearbyStores"; // ближайшие магазины (скоро)
 
 /** Что показываем на экране Premium; `ready: false` — функция ещё в разработке */
-export const PREMIUM_FEATURES: { id: Feature; title: TKey; emoji: string; ready: boolean }[] = [
+export const PREMIUM_FEATURES: {
+  id: Feature;
+  title: TKey;
+  emoji: string;
+  ready: boolean;
+}[] = [
   { id: "moreStores", title: "pfMoreStores", emoji: "🛒", ready: true },
   { id: "brandMode", title: "pfBrandMode", emoji: "🏷️", ready: true },
   { id: "savedBaskets", title: "pfSavedBaskets", emoji: "🗂️", ready: false },
@@ -31,7 +36,8 @@ export const FREE_MAX_STORES = 2;
 
 export const PREMIUM_ENABLED: boolean =
   process.env.EXPO_PUBLIC_PREMIUM_ENABLED === "1" ||
-  !!(Constants.expoConfig?.extra as { premiumEnabled?: boolean } | undefined)?.premiumEnabled;
+  !!(Constants.expoConfig?.extra as { premiumEnabled?: boolean } | undefined)
+    ?.premiumEnabled;
 
 /** Доступна ли функция: всегда, пока Premium выключен; иначе — только подписчикам */
 export function canUse(_feature: Feature, isPremium: boolean): boolean {

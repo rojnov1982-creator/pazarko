@@ -1,13 +1,39 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { favWords, inferFavorite, type Favorite } from "./favorites";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { setAnalyticsEnabled, setCommonProps, track } from "./analytics";
 import { buildAreaCity, storesInArea } from "./area";
-import { isStale, loadBrochures, loadCity, loadIndex, loadProducts, loadStoreFile } from "./data";
+import {
+  isStale,
+  loadBrochures,
+  loadCity,
+  loadIndex,
+  loadProducts,
+  loadStoreFile,
+} from "./data";
 import { deviceLang, Lang, makeT, T, TKey } from "./i18n";
 import { canUse, Feature } from "./premium";
 import { itemKey } from "./pins";
 import { isMetro } from "./prices";
-import type { Area, BasketItem, BrochureFile, CityFile, IndexFile, PinnedOffer, Product, ProductsFile, StoreFile } from "./types";
+import type {
+  Area,
+  BasketItem,
+  BrochureFile,
+  CityFile,
+  IndexFile,
+  PinnedOffer,
+  Product,
+  ProductsFile,
+  StoreFile,
+} from "./types";
 
 /**
  * Состояние данных района:
@@ -15,7 +41,8 @@ import type { Area, BasketItem, BrochureFile, CityFile, IndexFile, PinnedOffer, 
  * empty — в районе нет магазинов; error — ни один магазин не загрузился. В empty/error/loading план не считается,
  * весь город НЕ подставляется — только явным действием «Целия град».
  */
-export type AreaStatus = "city" | "loading" | "ready" | "partial" | "empty" | "error";
+export type AreaStatus =
+  "city" | "loading" | "ready" | "partial" | "empty" | "error";
 
 /**
  * Режим покупок: снимок выбранного плана на момент «Започни пазаруване».
@@ -28,13 +55,20 @@ export interface ShoppingLine {
   detail: string;
   cost: number;
   emoji: string;
+  /** акция только с картой сети — напомнить взять карту */
+  card?: boolean;
 }
 export interface ShoppingList {
   startedAt: string;
   pricesDate: string;
   total: number;
   approx: boolean;
-  stores: { chain: string; label?: string; subtotal: number; lines: ShoppingLine[] }[];
+  stores: {
+    chain: string;
+    label?: string;
+    subtotal: number;
+    lines: ShoppingLine[];
+  }[];
   /** ключи купленных строк (`<магазин>|<позиция>`) */
   checked: string[];
 }
@@ -79,18 +113,58 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 /** настройки, изменения которых пишем в статистику */
-const TRACKED_SETTINGS = ["maxStores", "usePromo", "extraStoreCost", "onlyGrocery", "showDeals", "hideMedicines", "lang", "easy", "includeMetro"] as const;
+const TRACKED_SETTINGS = [
+  "maxStores",
+  "usePromo",
+  "extraStoreCost",
+  "onlyGrocery",
+  "showDeals",
+  "hideMedicines",
+  "lang",
+  "easy",
+  "includeMetro",
+] as const;
 
-export const PRESETS: { id: string; title: TKey; emoji: string; items: BasketItem[] }[] = [
+const newId = () =>
+  Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+/** Позиция корзины для любимого продукта: группа КЗП и марка (если определены), слова — для брошюр */
+const favItem = (f: Favorite): BasketItem => ({
+  productId: f.productId ?? 0,
+  qty: 1,
+  brand: f.brand,
+  fav: f.id,
+  words: f.words,
+  name: f.name,
+});
+
+export const PRESETS: {
+  id: string;
+  title: TKey;
+  emoji: string;
+  items: BasketItem[];
+}[] = [
   {
     id: "week",
     title: "presetWeek",
     emoji: "🧺",
     items: [
-      { productId: 1, qty: 2 }, { productId: 6, qty: 3 }, { productId: 7, qty: 4 }, { productId: 9, qty: 1 },
-      { productId: 12, qty: 1 }, { productId: 16, qty: 1 }, { productId: 25, qty: 0.5 }, { productId: 31, qty: 1 },
-      { productId: 35, qty: 1 }, { productId: 42, qty: 1 }, { productId: 52, qty: 1 }, { productId: 53, qty: 1.5 },
-      { productId: 54, qty: 1 }, { productId: 58, qty: 1 }, { productId: 61, qty: 2 }, { productId: 85, qty: 1 },
+      { productId: 1, qty: 2 },
+      { productId: 6, qty: 3 },
+      { productId: 7, qty: 4 },
+      { productId: 9, qty: 1 },
+      { productId: 12, qty: 1 },
+      { productId: 16, qty: 1 },
+      { productId: 25, qty: 0.5 },
+      { productId: 31, qty: 1 },
+      { productId: 35, qty: 1 },
+      { productId: 42, qty: 1 },
+      { productId: 52, qty: 1 },
+      { productId: 53, qty: 1.5 },
+      { productId: 54, qty: 1 },
+      { productId: 58, qty: 1 },
+      { productId: 61, qty: 2 },
+      { productId: 85, qty: 1 },
     ],
   },
   {
@@ -98,8 +172,14 @@ export const PRESETS: { id: string; title: TKey; emoji: string; items: BasketIte
     title: "presetBreakfast",
     emoji: "🥐",
     items: [
-      { productId: 1, qty: 1 }, { productId: 6, qty: 2 }, { productId: 7, qty: 2 }, { productId: 12, qty: 1 },
-      { productId: 31, qty: 1 }, { productId: 67, qty: 4 }, { productId: 70, qty: 1 }, { productId: 52, qty: 1 },
+      { productId: 1, qty: 1 },
+      { productId: 6, qty: 2 },
+      { productId: 7, qty: 2 },
+      { productId: 12, qty: 1 },
+      { productId: 31, qty: 1 },
+      { productId: 67, qty: 4 },
+      { productId: 70, qty: 1 },
+      { productId: 52, qty: 1 },
     ],
   },
   {
@@ -107,8 +187,14 @@ export const PRESETS: { id: string; title: TKey; emoji: string; items: BasketIte
     title: "presetBbq",
     emoji: "🔥",
     items: [
-      { productId: 21, qty: 1.5 }, { productId: 26, qty: 1 }, { productId: 74, qty: 2 }, { productId: 54, qty: 1 },
-      { productId: 58, qty: 1 }, { productId: 49, qty: 1 }, { productId: 2, qty: 1 }, { productId: 73, qty: 1 },
+      { productId: 21, qty: 1.5 },
+      { productId: 26, qty: 1 },
+      { productId: 74, qty: 2 },
+      { productId: 54, qty: 1 },
+      { productId: 58, qty: 1 },
+      { productId: 49, qty: 1 },
+      { productId: 2, qty: 1 },
+      { productId: 73, qty: 1 },
     ],
   },
 ];
@@ -150,6 +236,13 @@ interface Ctx {
   addItem: (productId: number) => void;
   /** закрепить конкретное предложение (не сливается с обычным товаром той же группы) */
   addPinned: (pin: PinnedOffer, productId: number) => void;
+  /** любимые продукты: следим за ними в брошюрах; inList — держать в корзине каждую неделю */
+  favorites: Favorite[];
+  addFavorite: (name: string) => Favorite | null;
+  removeFavorite: (id: string) => void;
+  setFavoriteInList: (id: string, inList: boolean) => void;
+  /** своя строка без цены («Тоалетна хартия») */
+  addCustom: (name: string) => void;
   /** позиции корзины — по ключу (itemKey) */
   setQty: (key: string, qty: number) => void;
   removeItem: (key: string) => void;
@@ -193,7 +286,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [ekatte, setEkatte] = useState<string | null>(null);
   const [basket, setBasket] = useState<BasketItem[]>([]);
   const [shopping, setShopping] = useState<ShoppingList | null>(null);
-  const [settings, setSettings] = useState<Settings>({ ...DEFAULT_SETTINGS, lang: deviceLang() });
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const [settings, setSettings] = useState<Settings>({
+    ...DEFAULT_SETTINGS,
+    lang: deviceLang(),
+  });
   const [paywallOpen, setPaywallOpen] = useState(false);
 
   // Первая загрузка: сохранённое состояние + справочники (reload() — повторить)
@@ -201,7 +298,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const [saved, idx] = await Promise.all([AsyncStorage.getItem(KEY).catch(() => null), loadIndex()]);
+        const [saved, idx] = await Promise.all([
+          AsyncStorage.getItem(KEY).catch(() => null),
+          loadIndex(),
+        ]);
         const prods = await loadProducts(); // после index — чтобы взять файл текущей версии данных
         setIndex(idx);
         setProducts(prods);
@@ -211,11 +311,29 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           // сохранённое состояние читаем один раз; старые корзины (без закреплений) подходят как есть
           restored.current = true;
           const s = saved ? JSON.parse(saved) : {};
-          if (Array.isArray(s.basket)) setBasket(s.basket.filter((b: BasketItem) => b && typeof b.productId === "number" && b.qty > 0));
-          if (s.settings) setSettings({ ...DEFAULT_SETTINGS, lang: deviceLang(), ...s.settings });
-          if (s.shopping && Array.isArray(s.shopping.stores)) setShopping(s.shopping);
+          if (Array.isArray(s.basket))
+            setBasket(
+              s.basket.filter(
+                (b: BasketItem) =>
+                  b && typeof b.productId === "number" && b.qty > 0,
+              ),
+            );
+          if (s.settings)
+            setSettings({
+              ...DEFAULT_SETTINGS,
+              lang: deviceLang(),
+              ...s.settings,
+            });
+          if (s.shopping && Array.isArray(s.shopping.stores))
+            setShopping(s.shopping);
+          if (Array.isArray(s.favorites))
+            setFavorites(
+              s.favorites.filter(
+                (f: Favorite) => f && f.id && Array.isArray(f.words),
+              ),
+            );
           const known = idx.cities.some((c) => c.ekatte === s.ekatte);
-          setEkatte(known ? s.ekatte : idx.cities[0]?.ekatte ?? null);
+          setEkatte(known ? s.ekatte : (idx.cities[0]?.ekatte ?? null));
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -238,7 +356,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setError(null);
         setStale(isStale("index.json", `city/${ekatte}.json`));
       })
-      .catch((e) => alive && setError(e instanceof Error ? e.message : String(e)))
+      .catch(
+        (e) => alive && setError(e instanceof Error ? e.message : String(e)),
+      )
       .finally(() => alive && setCityLoading(false));
     return () => {
       alive = false;
@@ -272,11 +392,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     let alive = true;
     setAreaStatus("loading");
     setCityLoading(true);
-    Promise.allSettled(picked.map((st) => loadStoreFile(ekatte, st[0]).then((f) => [st[0], f] as const)))
+    Promise.allSettled(
+      picked.map((st) =>
+        loadStoreFile(ekatte, st[0]).then((f) => [st[0], f] as const),
+      ),
+    )
       .then((res) => {
         if (!alive) return;
         const files: Record<string, StoreFile> = {};
-        for (const r of res) if (r.status === "fulfilled") files[r.value[0]] = r.value[1];
+        for (const r of res)
+          if (r.status === "fulfilled") files[r.value[0]] = r.value[1];
         const ok = picked.filter((st) => files[st[0]]);
         setAreaLoaded(ok.length);
         if (!ok.length) {
@@ -296,8 +421,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // Сохранение
   useEffect(() => {
     if (!ready) return;
-    AsyncStorage.setItem(KEY, JSON.stringify({ ekatte, basket, settings, shopping })).catch(() => {});
-  }, [ready, ekatte, basket, settings, shopping]);
+    AsyncStorage.setItem(
+      KEY,
+      JSON.stringify({ ekatte, basket, settings, shopping, favorites }),
+    ).catch(() => {});
+  }, [ready, ekatte, basket, settings, shopping, favorites]);
 
   // Статистика: включаем по согласию, общие свойства, событие запуска
   const opened = useRef(false);
@@ -306,14 +434,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setAnalyticsEnabled(settings.analytics === true).then(() => {
       if (settings.analytics === true && !opened.current) {
         opened.current = true;
-        track("app_open", { basket_items: basket.length, area_mode: area.mode });
+        track("app_open", {
+          basket_items: basket.length,
+          area_mode: area.mode,
+        });
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, settings.analytics]);
   const cityName = index?.cities.find((c) => c.ekatte === ekatte)?.name;
   useEffect(() => {
-    setCommonProps({ lang: settings.lang, city: ekatte ?? undefined, city_name: cityName, prices_date: index?.date });
+    setCommonProps({
+      lang: settings.lang,
+      city: ekatte ?? undefined,
+      city_name: cityName,
+      prices_date: index?.date,
+    });
   }, [settings.lang, ekatte, cityName, index?.date]);
 
   const excludedEiks = useMemo(() => {
@@ -322,9 +458,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return [...new Set([...settings.excludedChains, ...metro])];
   }, [settings.includeMetro, settings.excludedChains, city]);
 
-  const productById = useMemo(() => new Map((products?.products ?? []).map((p) => [p.id, p])), [products]);
+  const productById = useMemo(
+    () => new Map((products?.products ?? []).map((p) => [p.id, p])),
+    [products],
+  );
   const t = useMemo(() => makeT(settings.lang), [settings.lang]);
-  const qtyStep = useCallback((id: number) => (productById.get(id)?.byWeight ? 0.5 : 1), [productById]);
+  const qtyStep = useCallback(
+    (id: number) => (productById.get(id)?.byWeight ? 0.5 : 1),
+    [productById],
+  );
 
   const value: Ctx = {
     ready,
@@ -368,17 +510,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     excludedEiks,
     selectCity: (e) => {
       setEkatte(e);
-      track("city_selected", { city: e, city_name: index?.cities.find((c) => c.ekatte === e)?.name });
+      track("city_selected", {
+        city: e,
+        city_name: index?.cities.find((c) => c.ekatte === e)?.name,
+      });
     },
     addItem: (productId) => {
       const key = `g:${productId}`;
       if (!basket.some((x) => itemKey(x) === key)) {
         const p = productById.get(productId);
-        track("item_added", { group: productId, group_name: p?.bg, category: p?.cat });
+        track("item_added", {
+          group: productId,
+          group_name: p?.bg,
+          category: p?.cat,
+        });
       }
       setBasket((b) =>
         b.some((x) => itemKey(x) === key)
-          ? b.map((x) => (itemKey(x) === key ? { ...x, qty: x.qty + qtyStep(productId) } : x))
+          ? b.map((x) =>
+              itemKey(x) === key
+                ? { ...x, qty: x.qty + qtyStep(productId) }
+                : x,
+            )
           : [...b, { productId, qty: qtyStep(productId) }],
       );
     },
@@ -386,36 +539,135 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const key = `pin:${pin.id}`;
       const step = pin.perKg ? 0.5 : 1;
       if (!basket.some((x) => itemKey(x) === key))
-        track("offer_pinned", { source: pin.source, chain: pin.chain, group: productId || undefined, product: pin.name });
+        track("offer_pinned", {
+          source: pin.source,
+          chain: pin.chain,
+          group: productId || undefined,
+          product: pin.name,
+        });
       setBasket((b) =>
         b.some((x) => itemKey(x) === key)
           ? b.map((x) => (itemKey(x) === key ? { ...x, qty: x.qty + step } : x))
           : [...b, { productId, qty: pin.perKg ? 1 : 1, pin }],
       );
     },
-    setQty: (key, qty) =>
-      setBasket((b) => (qty <= 0 ? b.filter((x) => itemKey(x) !== key) : b.map((x) => (itemKey(x) === key ? { ...x, qty } : x)))),
-    removeItem: (key) => setBasket((b) => b.filter((x) => itemKey(x) !== key)),
+    setQty: (key, qty) => {
+      if (qty <= 0 && key.startsWith("fav:"))
+        setFavorites((fs) =>
+          fs.map((f) => (`fav:${f.id}` === key ? { ...f, inList: false } : f)),
+        );
+      setBasket((b) =>
+        qty <= 0
+          ? b.filter((x) => itemKey(x) !== key)
+          : b.map((x) => (itemKey(x) === key ? { ...x, qty } : x)),
+      );
+    },
+    removeItem: (key) => {
+      // любимый продукт остаётся в «Любими», только убирается из списка этой недели
+      if (key.startsWith("fav:"))
+        setFavorites((fs) =>
+          fs.map((f) => (`fav:${f.id}` === key ? { ...f, inList: false } : f)),
+        );
+      setBasket((b) => b.filter((x) => itemKey(x) !== key));
+    },
     allowSubstitute: (key) => {
       const it = basket.find((x) => itemKey(x) === key);
       if (!it?.pin || !it.productId) return;
-      track("pin_substitute", { source: it.pin.source, chain: it.pin.chain, group: it.productId });
+      track("pin_substitute", {
+        source: it.pin.source,
+        chain: it.pin.chain,
+        group: it.productId,
+      });
       const gk = `g:${it.productId}`;
       setBasket((b) => {
         const rest = b.filter((x) => itemKey(x) !== key);
         // обычный товар этой группы уже есть — добавляем количество к нему
-        if (rest.some((x) => itemKey(x) === gk)) return rest.map((x) => (itemKey(x) === gk ? { ...x, qty: x.qty + it.qty } : x));
-        const qty = productById.get(it.productId)?.byWeight || !it.pin!.perKg ? it.qty : 1;
-        return b.map((x) => (itemKey(x) === key ? { productId: it.productId, qty } : x));
+        if (rest.some((x) => itemKey(x) === gk))
+          return rest.map((x) =>
+            itemKey(x) === gk ? { ...x, qty: x.qty + it.qty } : x,
+          );
+        const qty =
+          productById.get(it.productId)?.byWeight || !it.pin!.perKg
+            ? it.qty
+            : 1;
+        return b.map((x) =>
+          itemKey(x) === key ? { productId: it.productId, qty } : x,
+        );
       });
     },
-    clearBasket: () => setBasket([]),
+    favorites,
+    addFavorite: (name) => {
+      const text = name.trim();
+      const words = favWords(text);
+      if (!words.length) return null;
+      const same = favorites.find((f) => f.words.join(" ") === words.join(" "));
+      if (same) return same;
+      const groupNames = new Map(
+        (products?.products ?? []).map((p) => [p.id, p.bg]),
+      );
+      const { productId, brand } = inferFavorite(
+        text,
+        cityReady ? city : null,
+        brochures,
+        groupNames,
+      );
+      const fav: Favorite = {
+        id: newId(),
+        name: text,
+        words,
+        productId,
+        brand,
+        inList: true,
+      };
+      setFavorites((fs) => [...fs, fav]);
+      setBasket((b) => [...b, favItem(fav)]);
+      track("favorite_added", {
+        name: text,
+        group: productId,
+        brand: brand ?? "",
+      });
+      return fav;
+    },
+    removeFavorite: (id) => {
+      setFavorites((fs) => fs.filter((f) => f.id !== id));
+      setBasket((b) => b.filter((x) => x.fav !== id));
+      track("favorite_removed", {});
+    },
+    setFavoriteInList: (id, inList) => {
+      const fav = favorites.find((f) => f.id === id);
+      if (!fav) return;
+      setFavorites((fs) => fs.map((f) => (f.id === id ? { ...f, inList } : f)));
+      setBasket((b) =>
+        inList
+          ? b.some((x) => x.fav === id)
+            ? b
+            : [...b, favItem(fav)]
+          : b.filter((x) => x.fav !== id),
+      );
+    },
+    addCustom: (name) => {
+      const text = name.trim();
+      if (!text) return;
+      setBasket((b) => [
+        ...b,
+        { productId: 0, qty: 1, name: text, id: newId() },
+      ]);
+      track("custom_added", {});
+    },
+    // любимые «в списке» остаются и после очистки — их покупают каждую неделю
+    clearBasket: () =>
+      setBasket(favorites.filter((f) => f.inList).map(favItem)),
     loadPreset: (items, presetId) => {
-      setBasket(items.map((i) => ({ ...i })));
+      setBasket([
+        ...items.map((i) => ({ ...i })),
+        ...favorites.filter((f) => f.inList).map(favItem),
+      ]);
       track("preset_loaded", { preset: presetId, items: items.length });
     },
     updateSettings: (patch) => {
-      for (const k of TRACKED_SETTINGS) if (k in patch && patch[k] !== settings[k]) track("setting_changed", { key: k, value: patch[k] });
+      for (const k of TRACKED_SETTINGS)
+        if (k in patch && patch[k] !== settings[k])
+          track("setting_changed", { key: k, value: patch[k] });
       setSettings((s) => ({ ...s, ...patch }));
     },
     qtyStep,
@@ -423,18 +675,45 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     t,
     setBrand: (key, brand) => {
       const it = basket.find((x) => itemKey(x) === key);
-      track("brand_selected", { group: it?.productId, group_name: it ? productById.get(it.productId)?.bg : undefined, brand: brand ?? "any" });
-      setBasket((b) => b.map((x) => (itemKey(x) === key ? { ...x, brand } : x)));
+      track("brand_selected", {
+        group: it?.productId,
+        group_name: it ? productById.get(it.productId)?.bg : undefined,
+        brand: brand ?? "any",
+      });
+      setBasket((b) =>
+        b.map((x) => (itemKey(x) === key ? { ...x, brand } : x)),
+      );
     },
     shopping,
     startShopping: (list) => {
-      track("shopping_started", { stores: list.stores.length, items: list.stores.reduce((n, x) => n + x.lines.length, 0), total: list.total });
-      setShopping({ ...list, startedAt: new Date().toISOString(), checked: [] });
+      track("shopping_started", {
+        stores: list.stores.length,
+        items: list.stores.reduce((n, x) => n + x.lines.length, 0),
+        total: list.total,
+      });
+      setShopping({
+        ...list,
+        startedAt: new Date().toISOString(),
+        checked: [],
+      });
     },
     toggleBought: (id) =>
-      setShopping((sh) => (sh ? { ...sh, checked: sh.checked.includes(id) ? sh.checked.filter((x) => x !== id) : [...sh.checked, id] } : sh)),
+      setShopping((sh) =>
+        sh
+          ? {
+              ...sh,
+              checked: sh.checked.includes(id)
+                ? sh.checked.filter((x) => x !== id)
+                : [...sh.checked, id],
+            }
+          : sh,
+      ),
     finishShopping: () => {
-      if (shopping) track("shopping_finished", { bought: shopping.checked.length, items: shopping.stores.reduce((n, x) => n + x.lines.length, 0) });
+      if (shopping)
+        track("shopping_finished", {
+          bought: shopping.checked.length,
+          items: shopping.stores.reduce((n, x) => n + x.lines.length, 0),
+        });
       setShopping(null);
     },
     can: (f) => canUse(f, settings.isPremium),
@@ -442,7 +721,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     openPaywall: () => setPaywallOpen(true),
     closePaywall: () => setPaywallOpen(false),
   };
-  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+  return (
+    <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
+  );
 }
 
 export function useStore() {

@@ -5,10 +5,17 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
-import type { BrochureFile, CityFile, IndexFile, ProductsFile, StoreFile } from "./types";
+import type {
+  BrochureFile,
+  CityFile,
+  IndexFile,
+  ProductsFile,
+  StoreFile,
+} from "./types";
 
 const demoIndex = require("../../assets/demo-data/index.json") as IndexFile;
-const demoProducts = require("../../assets/demo-data/products.json") as ProductsFile;
+const demoProducts =
+  require("../../assets/demo-data/products.json") as ProductsFile;
 const demoCities: Record<string, CityFile> = {
   "68134": require("../../assets/demo-data/city/68134.json"),
   "56784": require("../../assets/demo-data/city/56784.json"),
@@ -31,9 +38,14 @@ let dataVersion = "";
 
 /** Файлы, которые не удалось обновить и которые показаны из сохранённой копии */
 const stalePaths = new Set<string>();
-export const isStale = (...paths: string[]) => paths.some((p) => stalePaths.has(p));
+export const isStale = (...paths: string[]) =>
+  paths.some((p) => stalePaths.has(p));
 
-async function fetchCached<T>(path: string, ttl: number, version = ""): Promise<T> {
+async function fetchCached<T>(
+  path: string,
+  ttl: number,
+  version = "",
+): Promise<T> {
   const key = `cache2:${path}@${version}`;
   try {
     const raw = await AsyncStorage.getItem(key);
@@ -44,10 +56,14 @@ async function fetchCached<T>(path: string, ttl: number, version = ""): Promise<
   } catch {}
   try {
     // ?v= — чтобы телефон и CDN не отдали старую копию файла
-    const res = await fetch(`${DATA_URL}/${path}?v=${encodeURIComponent(version || String(Math.floor(Date.now() / ttl)))}`);
+    const res = await fetch(
+      `${DATA_URL}/${path}?v=${encodeURIComponent(version || String(Math.floor(Date.now() / ttl)))}`,
+    );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as T;
-    AsyncStorage.setItem(key, JSON.stringify({ at: Date.now(), data })).catch(() => {});
+    AsyncStorage.setItem(key, JSON.stringify({ at: Date.now(), data })).catch(
+      () => {},
+    );
     stalePaths.delete(path);
     return data;
   } catch (e) {
@@ -58,9 +74,16 @@ async function fetchCached<T>(path: string, ttl: number, version = ""): Promise<
       return JSON.parse(raw).data as T;
     }
     // любая сохранённая версия этого файла (другая версия данных)
-    const keys = await AsyncStorage.getAllKeys().catch(() => [] as readonly string[]);
-    const older = keys.filter((k) => k.startsWith(`cache2:${path}@`)).sort().pop();
-    const rawOld = older ? await AsyncStorage.getItem(older).catch(() => null) : null;
+    const keys = await AsyncStorage.getAllKeys().catch(
+      () => [] as readonly string[],
+    );
+    const older = keys
+      .filter((k) => k.startsWith(`cache2:${path}@`))
+      .sort()
+      .pop();
+    const rawOld = older
+      ? await AsyncStorage.getItem(older).catch(() => null)
+      : null;
     if (rawOld) {
       stalePaths.add(path);
       return JSON.parse(rawOld).data as T;
@@ -77,7 +100,11 @@ export async function loadIndex(): Promise<IndexFile> {
 }
 
 export async function loadProducts(): Promise<ProductsFile> {
-  return IS_DEMO ? demoProducts : fetchCached<ProductsFile>("products.json", FILE_TTL, dataVersion).catch(() => demoProducts);
+  return IS_DEMO
+    ? demoProducts
+    : fetchCached<ProductsFile>("products.json", FILE_TTL, dataVersion).catch(
+        () => demoProducts,
+      );
 }
 
 export async function loadCity(ekatte: string): Promise<CityFile> {
@@ -90,13 +117,24 @@ export async function loadCity(ekatte: string): Promise<CityFile> {
 }
 
 /** Цены одного магазина (для режимов «Мои магазини» и «Близо до мен») */
-export async function loadStoreFile(ekatte: string, sid: string): Promise<StoreFile> {
+export async function loadStoreFile(
+  ekatte: string,
+  sid: string,
+): Promise<StoreFile> {
   if (IS_DEMO) throw new Error("В демо-режиме нет данных по магазинам");
-  return fetchCached<StoreFile>(`city/${ekatte}/s/${sid}.json`, FILE_TTL, dataVersion);
+  return fetchCached<StoreFile>(
+    `city/${ekatte}/s/${sid}.json`,
+    FILE_TTL,
+    dataVersion,
+  );
 }
 
 /** Брошюры сетей: действующие предложения и ближайшие (на неделю вперёд). В демо-режиме — нет. */
 export async function loadBrochures(): Promise<BrochureFile | null> {
   if (IS_DEMO) return null;
-  return fetchCached<BrochureFile>("brochures.json", FILE_TTL, dataVersion).catch(() => null);
+  return fetchCached<BrochureFile>(
+    "brochures.json",
+    FILE_TTL,
+    dataVersion,
+  ).catch(() => null);
 }
