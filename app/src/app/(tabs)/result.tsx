@@ -20,6 +20,7 @@ import {
   lineTexts,
   PurchaseLine,
   ScreenHeader,
+  Segmented,
 } from "../../components";
 import { AreaPicker } from "../../AreaPicker";
 import { track } from "../../lib/analytics";
@@ -260,9 +261,37 @@ export default function PlanScreen() {
   }
 
   const plan = sel.plan;
-  const total = basket.length;
-  const found = total - plan.missing.length;
-  const fullSingle = result.singles.find((x) => x.missing.length === 0);
+  // «В един магазин»: продукты, которых нет нигде (любимые без цены, свои строки), не делают магазин «неполным»
+  const nowhere = new Set(
+    (result.singles[0]?.missing ?? []).filter((k) =>
+      result.singles.every((x) => x.missing.includes(k)),
+    ),
+  );
+  const singlesEff = result.singles.map((x) => ({
+    ...x,
+    missing: x.missing.filter((k) => !nowhere.has(k)),
+  }));
+  const bestFull = Math.min(
+    ...singlesEff.filter((x) => !x.missing.length).map((x) => x.total),
+    Infinity,
+  );
+  const oneStoreRows = {
+    full: singlesEff
+      .filter((x) => !x.missing.length)
+      .sort((a, b) => a.total - b.total)
+      .map((x) => ({
+        ...x,
+        overpay: Math.round((x.total - bestFull) * 100) / 100,
+      })),
+    partial: singlesEff
+      .filter((x) => x.missing.length)
+      .sort((a, b) => a.missing.length - b.missing.length || a.total - b.total),
+  };
+  // продукты без цены нигде (свои строки, любимые без цены) не делают корзину «неполной» — показываются отдельно
+  const effMissing = plan.missing.filter((k) => !nowhere.has(k));
+  const total = basket.length - P.unpriced.length - nowhere.size;
+  const found = total - effMissing.length;
+  const fullSingle = singlesEff.find((x) => x.missing.length === 0);
   const storesLabel = (n: number) =>
     n === 1
       ? t("opt1")
@@ -365,7 +394,7 @@ export default function PlanScreen() {
   if (plan.stores.length > 1) {
     if (
       fullSingle &&
-      plan.missing.length === 0 &&
+      effMissing.length === 0 &&
       fullSingle.total - plan.total > 0.004
     ) {
       saved = fullSingle.total - plan.total;
@@ -433,6 +462,26 @@ export default function PlanScreen() {
       <ScrollView contentContainerStyle={[s.pad, { paddingBottom: 140 }]}>
         {header}
 
+        {/* Сколько магазинов: «в один» — всё в одном магазине, самом выгодном */}
+        <View style={{ gap: 6 }}>
+          <Text style={[s.body, { fontWeight: "800" }]}>
+            {t("storesQuestion")}
+          </Text>
+          <Segmented
+            items={[
+              { id: "1", label: t("seg1"), icon: "storefront-outline" },
+              { id: "2", label: t("seg2") },
+              { id: "3", label: t("seg3") },
+            ]}
+            value={String(maxStores === 0 ? 3 : Math.min(maxStores, 3))}
+            onChange={(v) => {
+              setSelected("cheapest");
+              st.updateSettings({ maxStores: Number(v) });
+              track("stores_switch", { stores: Number(v) });
+            }}
+          />
+        </View>
+
         {/* 1) Общая стоимость, полнота корзины, число магазинов, экономия */}
         <View
           style={{
@@ -449,14 +498,17 @@ export default function PlanScreen() {
           <View style={{ flex: 1, gap: 2 }}>
             <Text
               style={{
-                color: plan.missing.length ? "#FFE1D8" : "#fff",
+                color: effMissing.length ? "#FFE1D8" : "#fff",
                 fontSize: 18 * kf,
                 fontWeight: "800",
               }}
             >
-              {plan.missing.length
+              {effMissing.length
                 ? t("planIncomplete", { n: found, total })
                 : t("planComplete", { total })}
+              {nowhere.size + P.unpriced.length > 0
+                ? ` · ${t("plusNoPrice", { n: nowhere.size + P.unpriced.length })}`
+                : ""}
             </Text>
             <Text
               style={{
@@ -475,7 +527,9 @@ export default function PlanScreen() {
               style={{ color: "#E3F0E5", fontSize: 16 * kf, fontWeight: "600" }}
             >
               {[
-                storesLabel(plan.stores.length),
+                plan.stores.length === 1
+                  ? `${t("opt1")} · ${chainName(plan.stores[0].chain)}`
+                  : storesLabel(plan.stores.length),
                 saved > 0.004 ? t("savingShort", { amount: m(saved) }) : "",
               ]
                 .filter(Boolean)
@@ -500,7 +554,29 @@ export default function PlanScreen() {
         </View>
 
         {/* 2) Варианты покупки: «Един магазин» / «Два магазина» … */}
-        {options.length > 1 && (
+        {/* В один магазин: где выгоднее купить всё (любимые и брошюры уже в цене) */}
+        {maxStores === 1 &&
+          oneStoreRows.full.length + oneStoreRows.partial.length > 1 && (
+            <>
+              <CompareBlock
+                title={`🏪 ${t("oneStoreRank")}`}
+                bestText={`✓ ${t("bestHere")}`}
+                rows={oneStoreRows.full}
+                base={plan.total}
+                city={city}
+              />
+              <CompareBlock
+                title={t("compareNotFull")}
+                rows={oneStoreRows.partial}
+                base={plan.total}
+                city={city}
+                incomplete
+                limit={5}
+              />
+            </>
+          )}
+
+        {options.length > 1 && maxStores !== 1 && (
           <View style={{ gap: 10 }} accessibilityRole="radiogroup">
             {/* явные ряды по 2: проценты с gap переполняли ряд на узких экранах */}
             {chunk(options, twoCols ? 2 : 1).map((row) => (
@@ -514,6 +590,7 @@ export default function PlanScreen() {
                       base={cheapest?.plan}
                       active={o.id === sel.id}
                       total={total}
+                      ignore={nowhere}
                       onPress={() => {
                         setSelected(o.id);
                         track("option_selected", {
@@ -838,6 +915,7 @@ function OptionCard({
   base,
   active,
   total,
+  ignore,
   onPress,
 }: {
   title: string;
@@ -846,6 +924,8 @@ function OptionCard({
   base?: Plan;
   active: boolean;
   total: number;
+  /** продукты без цены нигде — не считаются недостающими */
+  ignore?: Set<string>;
   onPress: () => void;
 }) {
   const { t, lang } = useStore();
@@ -853,7 +933,8 @@ function OptionCard({
   const kf = useK();
   const m = (n: number) => money(n, lang);
   const more = base ? Math.round((plan.total - base.total) * 100) / 100 : 0;
-  const incomplete = plan.missing.length > 0;
+  const missingN = plan.missing.filter((k) => !ignore?.has(k)).length;
+  const incomplete = missingN > 0;
   return (
     <Pressable
       onPress={onPress}
@@ -904,7 +985,7 @@ function OptionCard({
             ]}
           >
             {t("optIncomplete")}:{" "}
-            {t("estimateOf", { n: total - plan.missing.length, total })}
+            {t("estimateOf", { n: total - missingN, total })}
           </Text>
         ) : more > 0.004 ? (
           <Text
@@ -927,12 +1008,16 @@ function CompareBlock({
   base,
   city,
   incomplete,
+  bestText,
+  limit,
 }: {
   title: string;
   rows: { chain: number; total: number; missing: string[]; overpay: number }[];
   base: number;
   city: CityFile;
   incomplete?: boolean;
+  bestText?: string;
+  limit?: number;
 }) {
   const { t, lang } = useStore();
   const s = useS();
@@ -942,7 +1027,7 @@ function CompareBlock({
   return (
     <Card style={{ gap: 12 }}>
       <Text style={[s.body, { fontWeight: "800" }]}>{title}</Text>
-      {rows.map((x) => (
+      {rows.slice(0, limit ?? rows.length).map((x) => (
         <View key={x.chain} style={{ gap: 5 }}>
           <View style={[s.row, { justifyContent: "space-between" }]}>
             <Text
@@ -988,7 +1073,7 @@ function CompareBlock({
               ? t("missingN", { n: x.missing.length })
               : x.overpay > 0.004
                 ? t("overpay", { amount: m(x.overpay) })
-                : t("same")}
+                : (bestText ?? t("same"))}
           </Text>
         </View>
       ))}

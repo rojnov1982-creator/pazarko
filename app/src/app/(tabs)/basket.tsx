@@ -129,9 +129,9 @@ export default function BasketScreen() {
         <DataStatus onOpenArea={() => setAreaOpen(true)} compact />
         {IS_DEMO && <DemoBanner />}
 
-        {st.basket.length === 0 ? (
+        {/* Первый запуск (или в корзине только любимые): главные действия — продукты и готовые корзины */}
+        {st.basket.every((b) => b.fav) && (
           <>
-            {/* Первый запуск: главные действия — продукты и готовые корзины */}
             <Card style={{ gap: 12 }}>
               <Text style={[s.body, { fontWeight: "800", fontSize: 20 * kf }]}>
                 {t("startHere")}
@@ -177,7 +177,8 @@ export default function BasketScreen() {
               </Pressable>
             ))}
           </>
-        ) : (
+        )}
+        {st.basket.length > 0 && (
           <>
             <View style={[s.row, { justifyContent: "flex-end" }]}>
               <Pressable
