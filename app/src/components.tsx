@@ -472,14 +472,34 @@ export function OfferCard(props: {
       {!!p.check && (
         <View style={[s.row, { gap: 6, alignItems: "flex-start" }]}>
           <Icon
-            name={p.check.tone === "good" ? "shield-checkmark-outline" : "information-circle-outline"}
+            name={
+              p.check.tone === "good"
+                ? "shield-checkmark-outline"
+                : "information-circle-outline"
+            }
             size={18 * k}
-            color={p.check.tone === "good" ? C.green : p.check.tone === "weak" ? "#8A5A00" : C.muted}
+            color={
+              p.check.tone === "good"
+                ? C.green
+                : p.check.tone === "weak"
+                  ? "#8A5A00"
+                  : C.muted
+            }
           />
           <Text
             style={[
               s.muted,
-              { flex: 1, fontSize: 14 * k, color: p.check.tone === "good" ? C.green : p.check.tone === "weak" ? "#8A5A00" : C.muted, fontWeight: "600" },
+              {
+                flex: 1,
+                fontSize: 14 * k,
+                color:
+                  p.check.tone === "good"
+                    ? C.green
+                    : p.check.tone === "weak"
+                      ? "#8A5A00"
+                      : C.muted,
+                fontWeight: "600",
+              },
             ]}
           >
             {p.check.text}
@@ -816,7 +836,9 @@ export function lineTexts(
     group,
     what,
     /** «📰 от брошурата · с карта» — для списка покупок */
-    brochureNote: bro ? `📰 ${t("fromBrochure")}${bro.card ? ` · ${t("withCard")}` : ""}` : "",
+    brochureNote: bro
+      ? `📰 ${t("fromBrochure")}${bro.card ? ` · ${t("withCard")}` : ""}`
+      : "",
     qtyText,
     emoji: item?.pin && !p ? "🏷️" : productEmoji(p),
   };
@@ -858,8 +880,18 @@ export function PurchaseLine({
         )}
         <Text style={[s.muted, { fontStyle: "italic" }]}>{qtyText}</Text>
         {line.offer.brochure && !item?.pin ? (
-          <Text style={[s.muted, { color: C.promo, fontSize: 13 * k, fontWeight: "700" }]}>
-            📰 {[t("fromBrochure"), t("validTo", { date: shortDate(line.offer.brochure.to) }), line.offer.brochure.card ? t("withCard") : ""]
+          <Text
+            style={[
+              s.muted,
+              { color: C.promo, fontSize: 13 * k, fontWeight: "700" },
+            ]}
+          >
+            📰{" "}
+            {[
+              t("fromBrochure"),
+              t("validTo", { date: shortDate(line.offer.brochure.to) }),
+              line.offer.brochure.card ? t("withCard") : "",
+            ]
               .filter(Boolean)
               .join(" · ")}
           </Text>
@@ -877,7 +909,9 @@ export function PurchaseLine({
           )
         )}
         {!!line.offer.brochure?.condition && !item?.pin && (
-          <Text style={[s.muted, { fontSize: 13 * k }]}>{line.offer.brochure.condition}</Text>
+          <Text style={[s.muted, { fontSize: 13 * k }]}>
+            {line.offer.brochure.condition}
+          </Text>
         )}
         {!!line.offer.store && (
           <Text style={[s.muted, { fontSize: 13 * k }]}>
@@ -896,5 +930,30 @@ export function PurchaseLine({
         {m(line.cost)}
       </Text>
     </View>
+  );
+}
+
+/** «‹ Назад» для экранов поверх вкладок (режим покупок, мои акции) */
+export function BackLink({ onPress }: { onPress: () => void }) {
+  const { t } = useStore();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={t("back")}
+      hitSlop={8}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        alignSelf: "flex-start",
+        paddingVertical: 6,
+      }}
+    >
+      <Icon name="chevron-back" size={24} color={C.green} />
+      <Text style={{ color: C.green, fontWeight: "700", fontSize: 17 }}>
+        {t("back")}
+      </Text>
+    </Pressable>
   );
 }
