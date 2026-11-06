@@ -26,7 +26,7 @@ pazarko/
 ├── app/                 приложение Expo
 │   ├── src/app/         экраны (Expo Router): index (Кошница), catalog (Продукти), deals (Оферти),
 │   │                    result (Спестяване), settings (Настройки), _layout
-│   ├── src/lib/         optimize.ts (алгоритм), data.ts, prices.ts, area.ts, store.tsx, i18n.ts, premium.ts, types.ts
+│   ├── src/lib/         optimize.ts (алгоритм), data.ts, prices.ts, area.ts, store.tsx, i18n.ts, premium.ts, types.ts, analytics.ts
 │   ├── src/AreaPicker.tsx, Paywall.tsx, ui.tsx
 │   ├── tests/optimize.test.ts   (7 тестов, `npm test`)
 │   ├── app.json, eas.json, AGENTS.md (правила работы с Expo для ИИ)
