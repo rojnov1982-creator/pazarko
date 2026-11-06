@@ -8,7 +8,7 @@ import { brandLabel, OWN_BRAND, productDetail, productName, splitName } from "..
 import { brandsInCity, cheapest, excludedIndexes } from "../lib/prices";
 import { PRESETS, useStore } from "../lib/store";
 import { AreaPicker } from "../AreaPicker";
-import { Button, C, CAT_EMOJI, Card, DemoBanner, H, money, PromoBadge, qtyLabel, s, Stepper } from "../ui";
+import { Button, C, Card, DemoBanner, H, money, productEmoji, PromoBadge, qtyLabel, s, Stepper } from "../ui";
 
 /** «гр. София» → «София» / «Sofia» */
 const cityLabel = (name: string, nameEn: string, lang: string) =>
@@ -41,7 +41,7 @@ export default function BasketScreen() {
 
   return (
     <SafeAreaView style={s.screen} edges={["top"]}>
-      <ScrollView contentContainerStyle={[s.pad, { paddingBottom: 120 }]}>
+      <ScrollView contentContainerStyle={[s.pad, { paddingBottom: 140 }]}>
         <View style={[s.row, { justifyContent: "space-between" }]}>
           <Text style={s.title}>{t("appName")}</Text>
           <Pressable onPress={() => setPicker(true)} style={[s.chip, s.row, { gap: 6 }]}>
@@ -90,21 +90,30 @@ export default function BasketScreen() {
 
         {st.basket.length === 0 ? (
           <>
-            <Card style={{ gap: 8 }}>
-              <Text style={[s.body, { fontWeight: "700", fontSize: 17 }]}>{t("buildBasket")}</Text>
-              <Text style={s.muted}>{t("buildBasketHint")}</Text>
-              <Button title={t("pickProducts")} onPress={() => router.push("/catalog")} style={{ marginTop: 6 }} />
+            <Card style={{ gap: 14 }}>
+              <Text style={[s.body, { fontWeight: "800", fontSize: 20 }]}>{t("howTitle")}</Text>
+              {(["how1", "how2", "how3"] as const).map((k, i) => (
+                <View key={k} style={[s.row, { alignItems: "flex-start", gap: 12 }]}>
+                  <View
+                    style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.green, alignItems: "center", justifyContent: "center" }}
+                  >
+                    <Text style={{ color: "#fff", fontWeight: "800", fontSize: 18 }}>{i + 1}</Text>
+                  </View>
+                  <Text style={[s.body, { flex: 1, fontSize: 18, marginTop: 5 }]}>{t(k)}</Text>
+                </View>
+              ))}
+              <Button title={t("pickProducts")} onPress={() => router.push("/catalog")} style={{ marginTop: 4 }} />
             </Card>
             <H style={{ marginTop: 8 }}>{t("readyBaskets")}</H>
             {PRESETS.map((p) => (
               <Pressable key={p.id} onPress={() => st.loadPreset(p.items, p.id)}>
                 <Card style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                  <Text style={{ fontSize: 28 }}>{p.emoji}</Text>
+                  <Text style={{ fontSize: 34 }}>{p.emoji}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={[s.body, { fontWeight: "700" }]}>{t(p.title)}</Text>
                     <Text style={s.muted}>{t("nItems", { n: p.items.length })}</Text>
                   </View>
-                  <Text style={{ color: C.green, fontWeight: "700" }}>{t("take")}</Text>
+                  <Text style={{ color: C.green, fontWeight: "800", fontSize: 17 }}>{t("take")}</Text>
                 </Card>
               </Pressable>
             ))}
@@ -129,36 +138,37 @@ export default function BasketScreen() {
                 return (
                   <View key={b.productId}>
                     {i > 0 && <View style={s.divider} />}
-                    <View style={[s.row, { padding: 14 }]}>
-                      <Text style={{ fontSize: 22 }}>{CAT_EMOJI[p.cat] ?? "🛒"}</Text>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[s.body, { fontWeight: "600" }]} numberOfLines={1}>
-                          {name}
-                        </Text>
-                        <Text style={s.muted} numberOfLines={1}>
-                          {c
-                            ? `${t("from", { price: money(c.price, lang) })}${p.byWeight ? t("perKg") : ""} · ${t("chainsShort", { n: c.chains })}`
-                            : t("notInCity")}
-                          {detail ? ` · ${detail}` : ""}
-                        </Text>
+                    {/* две строки: название целиком, ниже количество и марка — ничего не обрезается при крупном шрифте */}
+                    <View style={{ padding: 14, gap: 10 }}>
+                      <View style={[s.row, { alignItems: "flex-start", gap: 12 }]}>
+                        <Text style={{ fontSize: 30 }}>{productEmoji(p)}</Text>
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <Text style={[s.body, { fontWeight: "700", fontSize: 18 }]}>{name}</Text>
+                          <Text style={[s.muted, { color: c ? C.green : C.promo, fontWeight: "700", fontSize: 16 }]}>
+                            {c ? `${t("from", { price: money(c.price, lang) })}${p.byWeight ? t("perKg") : ""}` : t("notInCity")}
+                          </Text>
+                          {!!detail && <Text style={s.muted}>{detail}</Text>}
+                        </View>
+                      </View>
+                      <View style={[s.row, { flexWrap: "wrap", gap: 10 }]}>
+                        <Stepper
+                          value={b.qty}
+                          label={qtyLabel(b.qty, p.byWeight, t, lang)}
+                          onMinus={() => st.setQty(b.productId, Math.round((b.qty - step) * 10) / 10)}
+                          onPlus={() => st.setQty(b.productId, Math.round((b.qty + step) * 10) / 10)}
+                        />
                         {canBrand && (
                           <Pressable
                             onPress={() => (st.can("brandMode") ? setBrandFor(p.id) : st.openPaywall())}
                             hitSlop={6}
-                            style={[s.chip, { alignSelf: "flex-start", marginTop: 6, paddingVertical: 4, flexDirection: "row", gap: 4 }]}
+                            style={[s.chip, { flexDirection: "row", gap: 4 }]}
                           >
-                            <Text style={[s.chipText, { fontSize: 12, color: b.brand ? C.green : C.muted }]}>
-                              🏷️ {b.brand ? brandLabel(b.brand, t) : t("anyBrand")} ▾{st.can("brandMode") ? "" : " 🔒"}
+                            <Text style={[s.chipText, { color: b.brand ? C.green : C.muted }]}>
+                              🏷️ {b.brand ? brandLabel(b.brand, t) : t("brandShort")} ▾{st.can("brandMode") ? "" : " 🔒"}
                             </Text>
                           </Pressable>
                         )}
                       </View>
-                      <Stepper
-                        value={b.qty}
-                        label={qtyLabel(b.qty, p.byWeight, t, lang)}
-                        onMinus={() => st.setQty(b.productId, Math.round((b.qty - step) * 10) / 10)}
-                        onPlus={() => st.setQty(b.productId, Math.round((b.qty + step) * 10) / 10)}
-                      />
                     </View>
                   </View>
                 );
@@ -178,10 +188,8 @@ export default function BasketScreen() {
               { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 18, opacity: pressed ? 0.85 : 1 },
             ]}
           >
-            <Text style={[s.btnText, { flexShrink: 1 }]} numberOfLines={1}>
-              {t("findBest")}
-            </Text>
-            <Text style={[s.btnText, { fontWeight: "400", fontSize: 14, flexShrink: 0, marginLeft: 8 }]} numberOfLines={1}>
+            <Text style={[s.btnText, { flexShrink: 1, textAlign: "left" }]}>{t("findBest")} →</Text>
+            <Text style={[s.btnText, { fontWeight: "500", fontSize: 16, flexShrink: 0, marginLeft: 8 }]}>
               {t("from", { price: money(estimate, lang) })}
             </Text>
           </Pressable>

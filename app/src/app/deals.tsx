@@ -8,7 +8,7 @@ import { IS_DEMO } from "../lib/data";
 import { excludedIndexes } from "../lib/prices";
 import { useStore } from "../lib/store";
 import { BrochureList } from "../BrochureList";
-import { C, CAT_EMOJI, Chip, DemoBanner, money, s } from "../ui";
+import { C, Chip, DemoBanner, money, productEmoji, s } from "../ui";
 
 export default function DealsScreen() {
   const st = useStore();
@@ -56,7 +56,7 @@ export default function DealsScreen() {
           return (
             <View style={[s.card, s.row, { padding: 14, alignItems: "center" }]}>
               <View style={{ width: 54, alignItems: "center", gap: 4 }}>
-                <Text style={{ fontSize: 24 }}>{CAT_EMOJI[p?.cat ?? 0] ?? "🛒"}</Text>
+                <Text style={{ fontSize: 30 }}>{productEmoji(p)}</Text>
                 <View style={{ backgroundColor: C.promo, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
                   <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>−{pct}%</Text>
                 </View>

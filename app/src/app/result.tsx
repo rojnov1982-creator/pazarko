@@ -202,14 +202,14 @@ export default function ResultScreen() {
               return (
                 <View key={l.productId} style={{ borderTopWidth: 1, borderTopColor: C.line, paddingHorizontal: 14, paddingVertical: 10 }}>
                   <View style={[s.row, { justifyContent: "space-between" }]}>
-                    <Text style={[s.body, { flex: 1, fontWeight: "600" }]} numberOfLines={1}>
+                    <Text style={[s.body, { flex: 1, fontWeight: "700" }]}>
                       {name(l.productId)}
                       {brand ? <Text style={{ color: C.green }}> · {brandLabel(brand, t)}</Text> : null}
                     </Text>
                     <Text style={[s.num, { fontWeight: "700" }]}>{m(l.cost)}</Text>
                   </View>
                   <View style={[s.row, { gap: 6, marginTop: 2 }]}>
-                    <Text style={[s.muted, { flex: 1 }]} numberOfLines={1}>
+                    <Text style={[s.muted, { flex: 1 }]} numberOfLines={3}>
                       {p?.byWeight ? qtyLabel(l.qty, true, t, lang) : l.qty} × {m(l.offer.price)}
                       {l.offer.isPromo && <Text style={{ textDecorationLine: "line-through" }}> {m(l.offer.regular)}</Text>}
                       {"  ·  "}

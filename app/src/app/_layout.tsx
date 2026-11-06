@@ -10,7 +10,7 @@ import { Paywall } from "../Paywall";
 import { C } from "../ui";
 
 const icon = (emoji: string) => ({ focused }: { focused: boolean }) => (
-  <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.45 }}>{emoji}</Text>
+  <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>
 );
 
 function AppTabs() {
@@ -30,7 +30,7 @@ function AppTabs() {
         tabBarActiveTintColor: C.green,
         tabBarInactiveTintColor: C.muted,
         tabBarStyle: { backgroundColor: C.card, borderTopColor: C.line },
-        tabBarLabelStyle: { fontWeight: "600", fontSize: 11 },
+        tabBarLabelStyle: { fontWeight: "700", fontSize: 12 },
       }}
     >
       <Tabs.Screen

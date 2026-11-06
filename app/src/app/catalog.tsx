@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { cheapest, excludedIndexes } from "../lib/prices";
 import { useStore } from "../lib/store";
 import { categoryName, productDetail, productName, splitName } from "../lib/i18n";
-import { C, CAT_EMOJI, Chip, money, PromoBadge, qtyLabel, s, Stepper } from "../ui";
+import { C, CAT_EMOJI, Chip, money, productEmoji, PromoBadge, qtyLabel, s, Stepper } from "../ui";
 
 const fold = (t: string) => t.toLowerCase().replace(/ъ/g, "а").replace(/ё/g, "е");
 
@@ -71,21 +71,16 @@ export default function CatalogScreen() {
           const inBasket = st.basket.find((b) => b.productId === p.id);
           const step = st.qtyStep(p.id);
           return (
-            <View style={[s.row, { paddingVertical: 12 }]}>
-              <Text style={{ fontSize: 22 }}>{CAT_EMOJI[p.cat] ?? "🛒"}</Text>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={[s.body, { fontWeight: "600" }]}>{name}</Text>
-                {!!detail && (
-                  <Text style={s.muted} numberOfLines={1}>
-                    {detail}
-                  </Text>
-                )}
+            <View style={[s.row, { paddingVertical: 14, flexWrap: "wrap" }]}>
+              <Text style={{ fontSize: 30 }}>{productEmoji(p)}</Text>
+              <View style={{ flex: 1, minWidth: 160, gap: 2 }}>
+                <Text style={[s.body, { fontWeight: "700", fontSize: 18 }]}>{name}</Text>
+                {!!detail && <Text style={s.muted}>{detail}</Text>}
                 <View style={[s.row, { gap: 6, flexWrap: "wrap" }]}>
-                  <Text style={[s.muted, { color: c ? C.green : C.muted, fontWeight: "700" }]} numberOfLines={1}>
+                  <Text style={[s.muted, { color: c ? C.green : C.muted, fontWeight: "700", fontSize: 16 }]}>
                     {c ? `${t("from", { price: money(c.price, lang) })}${p.byWeight ? t("perKg") : ""}` : t("noData")}
                   </Text>
                   {c?.promo && <PromoBadge />}
-                  {c && <Text style={s.muted}>· {t("chainsShort", { n: c.chains })}</Text>}
                 </View>
               </View>
               {inBasket ? (
@@ -100,15 +95,15 @@ export default function CatalogScreen() {
                   onPress={() => st.addItem(p.id)}
                   disabled={!c}
                   style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 19,
+                    width: 52,
+                    height: 52,
+                    borderRadius: 26,
                     backgroundColor: c ? C.green : C.line,
                     alignItems: "center",
                     justifyContent: "center",
                   }}
                 >
-                  <Text style={{ color: "#fff", fontSize: 22, fontWeight: "700", marginTop: -2 }}>+</Text>
+                  <Text style={{ color: "#fff", fontSize: 30, fontWeight: "700", marginTop: -3 }}>+</Text>
                 </Pressable>
               )}
             </View>

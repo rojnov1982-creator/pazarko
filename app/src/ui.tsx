@@ -7,7 +7,7 @@ export const C = {
   bg: "#F4EFE6",
   card: "#FFFDF8",
   ink: "#1E2A22",
-  muted: "#6B7468",
+  muted: "#545C52", // темнее, чтобы читалось на бежевом фоне
   line: "#E4DDCF",
   green: "#1F6F4A",
   greenSoft: "#DCEBDF",
@@ -29,6 +29,21 @@ export const qtyLabel = (qty: number, byWeight: boolean, t: T, lang: Lang = "bg"
 export const CAT_EMOJI: Record<number, string> = {
   1: "🍞", 2: "🥛", 3: "🫒", 4: "🥩", 5: "🐟", 6: "🥕", 7: "🍫", 8: "🥫", 9: "🍎", 10: "☕", 11: "💧", 12: "🍷", 13: "🧴", 14: "💊",
 };
+
+/** Значок для каждого товара КЗП (не раздела): масло — 🧈, яйца — 🥚, ориз — 🍚 */
+export const PRODUCT_EMOJI: Record<number, string> = {
+  1: "🍞", 2: "🍞", 3: "🍞", 4: "🍞", 5: "🫓",
+  6: "🥛", 7: "🥣", 8: "🧀", 9: "🧀", 10: "🧀", 11: "🧀", 12: "🧈", 13: "🧀", 14: "🧀",
+  15: "🐔", 16: "🍗", 17: "🍗", 18: "🥩", 19: "🥩", 20: "🥩", 21: "🥩", 22: "🥩", 23: "🥩", 24: "🥩", 25: "🥩",
+  26: "🌭", 27: "🌭", 28: "🥓", 29: "🐟", 30: "🐟", 31: "🥚", 32: "🥚",
+  33: "🫘", 34: "🫘", 35: "🍚", 36: "🍝", 37: "🍝", 38: "🍬", 39: "🧂", 40: "🌾", 41: "🌾",
+  42: "🌻", 43: "🫒", 44: "🍶", 45: "🍶", 46: "🥫", 47: "🥫", 48: "🥫", 49: "🫙",
+  50: "🍋", 51: "🍊", 52: "🍌", 53: "🍎", 54: "🍅", 55: "🧅", 56: "🥕", 57: "🥬", 58: "🥒", 59: "🧄", 60: "🍄",
+  61: "🥔", 62: "🫒", 63: "🥣", 64: "🍼", 65: "🍼", 66: "🍪", 67: "🥐", 68: "🥧", 69: "🍫",
+  70: "☕", 71: "☕", 72: "🍵", 73: "💧", 74: "🍺", 75: "🥂", 76: "🍷", 77: "🥃", 78: "🚬",
+  79: "🧽", 80: "🪥", 81: "🦷", 82: "🧴", 83: "🧼", 84: "🧻", 85: "🧻",
+};
+export const productEmoji = (p?: { id: number; cat: number }) => (p ? PRODUCT_EMOJI[p.id] ?? CAT_EMOJI[p.cat] ?? "🛒" : "🛒");
 
 export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   return <View style={[s.card, style]}>{children}</View>;
@@ -110,25 +125,25 @@ export const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   pad: { padding: 16, gap: 12 },
   card: { backgroundColor: C.card, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: C.line },
-  h: { fontSize: 13, fontWeight: "700", color: C.muted, letterSpacing: 1, textTransform: "uppercase" },
-  title: { fontSize: 28, fontWeight: "800", color: C.ink, letterSpacing: -0.5 },
-  body: { fontSize: 15, color: C.ink },
-  muted: { fontSize: 13, color: C.muted },
+  h: { fontSize: 14, fontWeight: "700", color: C.muted, letterSpacing: 0.8, textTransform: "uppercase" },
+  title: { fontSize: 30, fontWeight: "800", color: C.ink, letterSpacing: -0.5 },
+  body: { fontSize: 17, color: C.ink },
+  muted: { fontSize: 15, color: C.muted },
   num: { fontFamily: mono, fontVariant: ["tabular-nums"], color: C.ink },
   row: { flexDirection: "row", alignItems: "center", gap: 10 },
-  btn: { backgroundColor: C.green, borderRadius: 14, paddingVertical: 15, alignItems: "center" },
+  btn: { backgroundColor: C.green, borderRadius: 16, paddingVertical: 17, paddingHorizontal: 16, alignItems: "center", minHeight: 56 },
   btnGhost: { backgroundColor: "transparent", borderWidth: 1.5, borderColor: C.green },
-  btnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: C.line, backgroundColor: C.card },
+  btnText: { color: "#fff", fontWeight: "700", fontSize: 18, textAlign: "center" },
+  chip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, borderWidth: 1.5, borderColor: C.line, backgroundColor: C.card, minHeight: 44, justifyContent: "center" },
   chipActive: { backgroundColor: C.green, borderColor: C.green },
-  chipText: { fontSize: 13, color: C.ink, fontWeight: "600" },
+  chipText: { fontSize: 15, color: C.ink, fontWeight: "600" },
   stepper: { flexDirection: "row", alignItems: "center", backgroundColor: C.greenSoft, borderRadius: 999 },
-  stepBtn: { width: 34, height: 34, alignItems: "center", justifyContent: "center" },
-  stepSign: { fontSize: 20, color: C.green, fontWeight: "700" },
-  stepVal: { minWidth: 56, textAlign: "center", fontWeight: "700", color: C.ink, fontSize: 13 },
-  badge: { backgroundColor: C.promoSoft, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  badgeText: { color: C.promo, fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
+  stepBtn: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  stepSign: { fontSize: 28, color: C.green, fontWeight: "700" },
+  stepVal: { minWidth: 64, textAlign: "center", fontWeight: "700", color: C.ink, fontSize: 17 },
+  badge: { backgroundColor: C.promoSoft, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
+  badgeText: { color: C.promo, fontSize: 12, fontWeight: "800", letterSpacing: 0.5 },
   demo: { backgroundColor: "#FFF4D6", borderRadius: 12, padding: 10, borderWidth: 1, borderColor: "#F0DFA8" },
-  demoText: { fontSize: 12, color: "#7A5C12" },
+  demoText: { fontSize: 14, color: "#7A5C12" },
   divider: { height: 1, backgroundColor: C.line },
 });
