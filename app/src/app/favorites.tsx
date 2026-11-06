@@ -19,7 +19,8 @@ import {
   todayIso,
   visibleChains,
 } from "../lib/brochures";
-import { favoriteOffers, kzpFavPrice } from "../lib/favorites";
+import { favNameFrom, favoriteOffers, favWords, historyMatches, kzpFavPrice, lastSeen } from "../lib/favorites";
+import type { BrochureHistoryItem } from "../lib/types";
 import { isPerKgOffer } from "../lib/pins";
 import { useStore } from "../lib/store";
 import { Button, C, Card, money, productEmoji, useK, useS } from "../ui";
@@ -36,6 +37,20 @@ export default function FavoritesScreen() {
     [bro, st.baseCity, st.excludedEiks],
   );
   const back = () => (router.canGoBack() ? router.back() : router.replace("/"));
+  const suggestions = useMemo(
+    () => (text.trim().length >= 3 ? historyMatches(st.history, favWords(text), 6) : []),
+    [text, st.history],
+  );
+  // «Fantastico · 3,49 € · 03.11–09.11 · 2 седм.»
+  const pastLine = (h: BrochureHistoryItem) =>
+    [
+      st.history?.chains[h.c]?.name ?? "",
+      h.p != null ? money(h.p, lang) : "",
+      `${shortDate(h.f)}–${shortDate(h.t)}`,
+      h.w > 1 ? t("weeksN", { n: h.w }) : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
   const add = () => {
     if (st.addFavorite(text)) setText("");
   };
@@ -73,6 +88,25 @@ export default function FavoritesScreen() {
               paddingVertical: 12,
             }}
           />
+          {/* подсказки из истории брошюр: всё, что хоть раз было в акции; нажатие — подставить название */}
+          {suggestions.length > 0 && (
+            <View style={{ gap: 6 }}>
+              <Text style={[s.muted, { fontWeight: "700" }]}>{t("favSuggest")}</Text>
+              {suggestions.map((h) => (
+                <Pressable
+                  key={`${h.c}|${h.n}|${h.b ?? ""}`}
+                  onPress={() => setText(favNameFrom(h.n, h.b))}
+                  accessibilityRole="button"
+                  style={{ backgroundColor: "#F6F2EA", borderRadius: 12, padding: 10, gap: 2 }}
+                >
+                  <Text style={[s.body, { fontWeight: "700", fontSize: 15.5 * k }]}>{h.n}</Text>
+                  <Text style={[s.muted, { fontSize: 13.5 * k }]}>
+                    {pastLine(h)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
           <Button
             title={`♡ ${t("favAdd")}`}
             onPress={add}
@@ -96,6 +130,7 @@ export default function FavoritesScreen() {
           const best = offers[0];
           const p = f.productId ? st.productById.get(f.productId) : undefined;
           const kzp = kzpFavPrice(f, st.baseCity);
+          const seen = best ? undefined : lastSeen(f, st.history);
           return (
             <Card key={f.id} style={{ gap: 10 }}>
               <View style={[s.row, { gap: 12, alignItems: "flex-start" }]}>
@@ -126,6 +161,8 @@ export default function FavoritesScreen() {
                   ) : (
                     <Text style={[s.muted, { fontWeight: "700" }]}>
                       {t("favNoSale")}
+                      {"\n"}
+                      {seen ? t("favLastSeen", { what: pastLine(seen) }) : t("favNeverSeen")}
                     </Text>
                   )}
                   {offers.slice(1, 3).map((o) => (

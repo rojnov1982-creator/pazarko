@@ -123,3 +123,26 @@ test("корзина только из своих строк: план гото�
   assert.deepEqual(r.plan.missing, []);
   assert.equal(r.plan.stores.length, 0);
 });
+
+test("история брошюр: поиск по словам, последняя акция, название для «Любими» без граммовки", async () => {
+  const { favNameFrom, historyMatches, lastSeen } = await import("../src/lib/favorites");
+  const history = {
+    v: 1,
+    generatedAt: "",
+    chains: [{ name: "Fantastico", match: ["ФАНТАСТИКО"] }],
+    items: [
+      { c: 0, n: "Луканка Добруджанска; Чардака ОРЕХИТЕ ГАСТРО 300 г", b: "ОРЕХИТЕ ГАСТРО", g: 28, f: "2026-11-03", t: "2026-11-09", p: 3.49, w: 2 },
+      { c: 0, n: "Луканка Смядовска ОРЕХИТЕ 300 г", b: "ОРЕХИТЕ", g: 28, f: "2026-10-20", t: "2026-10-26", p: 2.99, w: 1 },
+    ],
+  };
+  const w = favWords("Луканка Орехите Чардака");
+  assert.deepEqual(historyMatches(history, w).map((h) => h.p), [3.49]);
+  assert.equal(historyMatches(history, favWords("орехите луканка")).length, 2);
+  assert.equal(lastSeen({ id: "x", name: "", words: w, inList: true }, history)?.f, "2026-11-03");
+  assert.equal(lastSeen({ id: "y", name: "", words: favWords("Кашкавал Елена"), inList: true }, history), undefined);
+  assert.equal(
+    favNameFrom("Луканка Добруджанска; Чардака ОРЕХИТЕ ГАСТРО насипна от щандова витрина", "ОРЕХИТЕ ГАСТРО"),
+    "Луканка Добруджанска Чардака Орехите",
+  );
+  assert.equal(favNameFrom("Кашкавал 400 г", "ЕЛЕНА"), "Кашкавал Елена");
+});

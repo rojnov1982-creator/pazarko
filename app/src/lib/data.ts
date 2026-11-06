@@ -7,6 +7,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import type {
   BrochureFile,
+  BrochureHistory,
   CityFile,
   IndexFile,
   ProductsFile,
@@ -137,4 +138,10 @@ export async function loadBrochures(): Promise<BrochureFile | null> {
     FILE_TTL,
     dataVersion,
   ).catch(() => null);
+}
+
+/** История брошюр (все недели): для поиска прошедших акций и подсказок в «Любими». В демо-режиме — нет. */
+export async function loadBrochureHistory(): Promise<BrochureHistory | null> {
+  if (IS_DEMO) return null;
+  return fetchCached<BrochureHistory>("brochure-history.json", FILE_TTL, dataVersion).catch(() => null);
 }

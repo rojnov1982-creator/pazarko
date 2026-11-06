@@ -4,7 +4,7 @@
 // - Если любимый продукт «в списке», он стоит в корзине как обычный товар: группа КЗП + марка (если удалось
 //   определить) — цена по КЗП, а если есть подходящая акция в брошюре, план возьмёт её. Без группы — строка без цены.
 
-import type { BrochureFile, BrochureOffer, CityFile, PriceTuple } from "./types";
+import type { BrochureFile, BrochureHistory, BrochureHistoryItem, BrochureOffer, CityFile, PriceTuple } from "./types";
 
 export interface Favorite {
   id: string;
@@ -153,4 +153,42 @@ export function favPart(
   }
   if (regOk) return { price: regular, regular, isPromo: false, product: regName, pack: regPack || undefined };
   return null;
+}
+
+/** Продукты из истории брошюр, где есть все слова; самые свежие первыми */
+export function historyMatches(history: BrochureHistory | null, words: string[], limit = 20): BrochureHistoryItem[] {
+  if (!history || !words.length) return [];
+  const out: BrochureHistoryItem[] = [];
+  for (const h of history.items) {
+    if (matchesWords(words, `${h.n} ${h.b ?? ""}`)) out.push(h);
+    if (out.length >= limit) break; // items уже отсортированы по дате, новые первыми
+  }
+  return out;
+}
+
+/** Последняя акция любимого продукта из истории брошюр */
+export const lastSeen = (f: Favorite, history: BrochureHistory | null) => historyMatches(history, f.words, 1)[0];
+
+/**
+ * Название для «Любими» из продукта брошюры: вид продукта (первое слово), собственные имена (с заглавной)
+ * и марка (первое слово), без граммовки и описаний —
+ * «Луканка Добруджанска; Чардака ОРЕХИТЕ ГАСТРО насипна от щандова витрина» → «Луканка Добруджанска Чардака Орехите».
+ */
+export function favNameFrom(name: string, brand?: string): string {
+  const title = (w: string) => (w.length > 1 && w === w.toUpperCase() ? w[0] + w.slice(1).toLowerCase() : w);
+  const brandWords = new Set(fold(brand ?? "").split(" ").filter(Boolean));
+  const firstBrand = fold(brand ?? "").split(" ")[0] ?? "";
+  const words = name
+    .replace(/[;,()]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w && !/\d/.test(w) && !/^(г|гр|кг|мл|л|бр|x|х|%)$/i.test(w));
+  const out: string[] = [];
+  words.forEach((w, i) => {
+    const f = fold(w);
+    if (brandWords.has(f) && f !== firstBrand) return; // от марки — только первое слово
+    const proper = /^\p{Lu}/u.test(w);
+    if (i === 0 || proper) out.push(title(w));
+  });
+  if (firstBrand && !out.some((w) => fold(w) === firstBrand)) out.push(title((brand ?? "").split(/\s+/)[0]));
+  return [...new Set(out)].join(" ");
 }

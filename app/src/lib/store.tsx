@@ -13,6 +13,7 @@ import { setAnalyticsEnabled, setCommonProps, track } from "./analytics";
 import { buildAreaCity, storesInArea } from "./area";
 import {
   isStale,
+  loadBrochureHistory,
   loadBrochures,
   loadCity,
   loadIndex,
@@ -27,6 +28,7 @@ import type {
   Area,
   BasketItem,
   BrochureFile,
+  BrochureHistory,
   CityFile,
   IndexFile,
   PinnedOffer,
@@ -206,6 +208,8 @@ interface Ctx {
   products: ProductsFile | null;
   /** брошюры сетей (null — нет данных или ещё не загрузились) */
   brochures: BrochureFile | null;
+  /** история брошюр (все недели) — поиск прошедших акций, подсказки в «Любими» */
+  history: BrochureHistory | null;
   productById: Map<number, Product>;
   /**
    * Данные для расчёта: весь город или собранные из магазинов района.
@@ -274,6 +278,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [index, setIndex] = useState<IndexFile | null>(null);
   const [products, setProducts] = useState<ProductsFile | null>(null);
   const [brochures, setBrochures] = useState<BrochureFile | null>(null);
+  const [history, setHistory] = useState<BrochureHistory | null>(null);
   const [city, setCity] = useState<CityFile | null>(null);
   const [areaCity, setAreaCity] = useState<CityFile | null>(null);
   const [areaStoreCount, setAreaStoreCount] = useState(0);
@@ -306,6 +311,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setIndex(idx);
         setProducts(prods);
         loadBrochures().then(setBrochures); // не задерживаем запуск
+        loadBrochureHistory().then(setHistory);
         setError(null);
         if (!restored.current) {
           // сохранённое состояние читаем один раз; старые корзины (без закреплений) подходят как есть
@@ -474,6 +480,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     index,
     products,
     brochures,
+    history,
     productById,
     city:
       area.mode === "city"
@@ -605,12 +612,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const groupNames = new Map(
         (products?.products ?? []).map((p) => [p.id, p.bg]),
       );
-      const { productId, brand } = inferFavorite(
-        text,
-        cityReady ? city : null,
-        brochures,
-        groupNames,
-      );
+      // группа КЗП: по текущим брошюрам и по истории (продукт мог быть в акции в прошлые недели)
+      const known = brochures
+        ? { ...brochures, offers: [...brochures.offers, ...((history?.items ?? []) as unknown as BrochureFile["offers"])] }
+        : null;
+      const { productId, brand } = inferFavorite(text, cityReady ? city : null, known, groupNames);
       const fav: Favorite = {
         id: newId(),
         name: text,

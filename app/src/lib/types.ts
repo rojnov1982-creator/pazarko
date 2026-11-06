@@ -210,3 +210,28 @@ export interface BrochureFile {
   types: string[];
   offers: BrochureOffer[];
 }
+
+/** Продукт из истории брошюр (все разобранные недели): последняя акция и сколько недель встречался */
+export interface BrochureHistoryItem {
+  c: number;
+  n: string;
+  b?: string;
+  g?: number;
+  a?: number;
+  /** последняя акция: с / до */
+  f: string;
+  t: string;
+  p?: number;
+  r?: number;
+  u?: string;
+  k?: 1;
+  /** в скольких неделях был в брошюрах */
+  w: number;
+}
+
+export interface BrochureHistory {
+  v: number;
+  generatedAt: string;
+  chains: { name: string; match: string[] }[];
+  items: BrochureHistoryItem[];
+}

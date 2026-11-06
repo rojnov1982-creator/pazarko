@@ -65,6 +65,48 @@ const offers = [];
 const seen = new Set();
 const stats = { files: files.length, rows: 0, expired: 0, future: 0, noChain: 0, dup: 0, comparable: 0 };
 
+// История всех разобранных брошюр: каждый продукт (сеть + название + марка) один раз — с последней акцией
+// и числом недель, когда он был в брошюрах. Для поиска «по всички седмици» и подсказок в «Любими».
+const history = new Map();
+const cleanName = (s) =>
+  (s ?? "")
+    .split("•")[0]
+    .replace(/(^|\s)(МЕ|ME)\s*=\s*/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+function remember(r, chain, from, to) {
+  const name = cleanName(r.product);
+  if (!name) return;
+  const brand = (r.brand ?? "").trim() || undefined;
+  const key = [chain, name.toLowerCase(), (brand ?? "").toLowerCase()].join("|");
+  const price = num(r.effective_eur) ?? num(r.price_eur);
+  const regular = num(r.regular_eur);
+  const prev = history.get(key);
+  const weeks = new Set(prev?.weeks ?? []);
+  weeks.add(from);
+  if (prev && prev.f > from) {
+    prev.weeks = weeks;
+    return;
+  }
+  const qty = num(r.total_qty);
+  const unit = (r.unit ?? "").trim();
+  const ppu = !(r.check ?? "").trim() && price && qty && unit ? r2(price / qty) : undefined;
+  history.set(key, {
+    chain,
+    n: name,
+    b: brand,
+    g: num(String(r.kzp_group ?? "").split("/")[0]) || undefined,
+    a: num(r.cat) ?? undefined,
+    f: from,
+    t: to,
+    p: r2(price),
+    r: regular && price && regular > price ? r2(regular) : undefined,
+    u: ppu ? `${ppu}/${unit}` : undefined,
+    k: (r.mechanic ?? "").includes("card_app") ? 1 : undefined,
+    weeks,
+  });
+}
+
 for (const f of files) {
   const rows = parse(fs.readFileSync(path.join(dir, f), "utf8"), { columns: true, bom: true, skip_empty_lines: true, relax_column_count: true });
   for (const r of rows) {
@@ -77,6 +119,7 @@ for (const f of files) {
     const from = r.valid_from || r.brochure_from;
     const to = r.valid_to || r.brochure_to;
     if (!from || !to) continue;
+    remember(r, chain, from, to); // история: все недели, включая прошедшие
     if (to < today) {
       stats.expired++;
       continue;
@@ -164,8 +207,18 @@ const result = {
 };
 fs.mkdirSync(outDir, { recursive: true });
 fs.writeFileSync(path.join(outDir, "brochures.json"), JSON.stringify(result));
+
+// история: сети — в том же порядке, что и в brochures.json (новые сети из истории добавляются в конец)
+const histItems = [...history.values()]
+  .sort((x, y) => (y.f < x.f ? -1 : y.f > x.f ? 1 : 0))
+  .map(({ chain, weeks, ...h }) => ({ ...h, c: idx(chainIdx, chain), w: weeks.size }));
+fs.writeFileSync(
+  path.join(outDir, "brochure-history.json"),
+  JSON.stringify({ v: 1, generatedAt: result.generatedAt, chains: [...chainIdx.keys()].map((name) => ({ name, match: CHAINS[name] })), items: histItems }),
+);
 console.log(
   `Брошюры: файлов ${stats.files}, строк ${stats.rows} → предложений ${offers.length} ` +
     `(сравнимых с КЗП ${stats.comparable}; истекли ${stats.expired}, позже ${UPCOMING_DAYS} дн. ${stats.future}, ` +
-    `дубли ${stats.dup}, неизвестная сеть ${stats.noChain}) → ${outDir}/brochures.json`,
+    `дубли ${stats.dup}, неизвестная сеть ${stats.noChain}) → ${outDir}/brochures.json; ` +
+    `история: ${history.size} продуктов → brochure-history.json`,
 );
