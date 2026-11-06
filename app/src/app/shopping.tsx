@@ -88,7 +88,7 @@ export default function ShoppingScreen() {
               }}
             />
           </View>
-          {done.length < lines.length && (
+          {done.length < lines.length && sh.total > 0 && (
             <Text
               style={{ color: "#E3F0E5", fontSize: 17 * k, fontWeight: "600" }}
             >

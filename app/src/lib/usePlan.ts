@@ -63,8 +63,9 @@ export function usePlan() {
   );
 
   const result = useMemo(
-    () => (city && basket.length ? optimizeBasket(city, basket, opts) : null),
-    [city, basket, opts],
+    // только свои строки / любимые без группы — тоже готовый (пустой) план: экран покажет их в «Без цена»
+    () => (city && st.basket.length ? optimizeBasket(city, basket, opts) : null),
+    [city, basket, st.basket.length, opts],
   );
 
   /** Сколько стоит план, если разрешить на один магазин меньше: «второй магазин экономит X €» */

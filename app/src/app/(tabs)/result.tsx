@@ -463,24 +463,26 @@ export default function PlanScreen() {
         {header}
 
         {/* Сколько магазинов: «в один» — всё в одном магазине, самом выгодном */}
-        <View style={{ gap: 6 }}>
-          <Text style={[s.body, { fontWeight: "800" }]}>
-            {t("storesQuestion")}
-          </Text>
-          <Segmented
-            items={[
-              { id: "1", label: t("seg1"), icon: "storefront-outline" },
-              { id: "2", label: t("seg2") },
-              { id: "3", label: t("seg3") },
-            ]}
-            value={String(maxStores === 0 ? 3 : Math.min(maxStores, 3))}
-            onChange={(v) => {
-              setSelected("cheapest");
-              st.updateSettings({ maxStores: Number(v) });
-              track("stores_switch", { stores: Number(v) });
-            }}
-          />
-        </View>
+        {total > 0 && (
+          <View style={{ gap: 6 }}>
+            <Text style={[s.body, { fontWeight: "800" }]}>
+              {t("storesQuestion")}
+            </Text>
+            <Segmented
+              items={[
+                { id: "1", label: t("seg1"), icon: "storefront-outline" },
+                { id: "2", label: t("seg2") },
+                { id: "3", label: t("seg3") },
+              ]}
+              value={String(maxStores === 0 ? 3 : Math.min(maxStores, 3))}
+              onChange={(v) => {
+                setSelected("cheapest");
+                st.updateSettings({ maxStores: Number(v) });
+                track("stores_switch", { stores: Number(v) });
+              }}
+            />
+          </View>
+        )}
 
         {/* 1) Общая стоимость, полнота корзины, число магазинов, экономия */}
         <View
@@ -503,38 +505,48 @@ export default function PlanScreen() {
                 fontWeight: "800",
               }}
             >
-              {effMissing.length
-                ? t("planIncomplete", { n: found, total })
-                : t("planComplete", { total })}
-              {nowhere.size + P.unpriced.length > 0
-                ? ` · ${t("plusNoPrice", { n: nowhere.size + P.unpriced.length })}`
+              {total === 0
+                ? noPrice.length === 1
+                  ? t("onlyNoPrice1")
+                  : t("onlyNoPrice", { n: noPrice.length })
+                : effMissing.length
+                  ? t("planIncomplete", { n: found, total })
+                  : t("planComplete", { total })}
+              {total > 0 && noPrice.length > 0
+                ? ` · ${t("plusNoPrice", { n: noPrice.length })}`
                 : ""}
             </Text>
-            <Text
-              style={{
-                color: "#fff",
-                fontSize: 40 * kf,
-                fontWeight: "900",
-                letterSpacing: -1,
-              }}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-            >
-              {plan.approx ? "≈ " : ""}
-              {m(plan.total)}
-            </Text>
-            <Text
-              style={{ color: "#E3F0E5", fontSize: 16 * kf, fontWeight: "600" }}
-            >
-              {[
-                plan.stores.length === 1
-                  ? `${t("opt1")} · ${chainName(plan.stores[0].chain)}`
-                  : storesLabel(plan.stores.length),
-                saved > 0.004 ? t("savingShort", { amount: m(saved) }) : "",
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </Text>
+            {total > 0 && (
+              <>
+                <Text
+                  style={{
+                    color: "#fff",
+                    fontSize: 40 * kf,
+                    fontWeight: "900",
+                    letterSpacing: -1,
+                  }}
+                >
+                  {plan.approx ? "≈ " : ""}
+                  {m(plan.total)}
+                </Text>
+                <Text
+                  style={{
+                    color: "#E3F0E5",
+                    fontSize: 16 * kf,
+                    fontWeight: "600",
+                  }}
+                >
+                  {[
+                    plan.stores.length === 1
+                      ? `${t("opt1")} · ${chainName(plan.stores[0].chain)}`
+                      : storesLabel(plan.stores.length),
+                    saved > 0.004 ? t("savingShort", { amount: m(saved) }) : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </Text>
+              </>
+            )}
           </View>
           {!easy && (
             <View
@@ -608,10 +620,12 @@ export default function PlanScreen() {
         )}
 
         {/* 3) База сравнения и пояснения */}
-        <View style={[s.row, { gap: 6, alignItems: "flex-start" }]}>
-          <Icon name="information-circle-outline" size={20} color={C.muted} />
-          <Text style={[s.muted, { flex: 1 }]}>{t("baseNote")}</Text>
-        </View>
+        {total > 0 && (
+          <View style={[s.row, { gap: 6, alignItems: "flex-start" }]}>
+            <Icon name="information-circle-outline" size={20} color={C.muted} />
+            <Text style={[s.muted, { flex: 1 }]}>{t("baseNote")}</Text>
+          </View>
+        )}
         {(explain.length > 0 || plan.approx) && (
           <Card
             style={{
@@ -827,7 +841,7 @@ export default function PlanScreen() {
         </Pressable>
 
         {/* 5) Подробное сравнение: полные и неполные корзины раздельно (не в «Лесен режим») */}
-        {!easy && (
+        {!easy && total > 0 && (
           <Pressable
             onPress={() => setDetails(!details)}
             accessibilityRole="button"

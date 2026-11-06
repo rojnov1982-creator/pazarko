@@ -4,7 +4,7 @@
 // - Если любимый продукт «в списке», он стоит в корзине как обычный товар: группа КЗП + марка (если удалось
 //   определить) — цена по КЗП, а если есть подходящая акция в брошюре, план возьмёт её. Без группы — строка без цены.
 
-import type { BrochureFile, BrochureOffer, CityFile } from "./types";
+import type { BrochureFile, BrochureOffer, CityFile, PriceTuple } from "./types";
 
 export interface Favorite {
   id: string;
@@ -126,10 +126,31 @@ export function kzpFavPrice(
       : city.items[String(f.productId)]) ?? [];
   let best: { price: number; chain: string } | null = null;
   for (const t of list) {
-    if (!matchesWords(f.words, `${t[2]} ${t[5] ?? ""}`)) continue;
-    const price = t[3] > 0 ? Math.min(t[1], t[3]) : t[1];
-    if (!best || price < best.price)
-      best = { price, chain: city.chains[t[0]]?.name ?? "" };
+    const part = favPart(t, f.words, true);
+    if (part && (!best || part.price < best.price))
+      best = { price: part.price, chain: city.chains[t[0]]?.name ?? "" };
   }
   return best;
+}
+
+/**
+ * Цена любимого продукта из записи КЗП. В записи две части — обычная цена (свой товар) и самая выгодная
+ * (может быть ДРУГОЙ товар той же марки, например по акции). Каждую часть проверяем отдельно — с её ценой
+ * и фасовкой; чужой товар не подставляем никогда.
+ */
+export function favPart(
+  t: PriceTuple,
+  words: string[],
+  usePromo: boolean,
+): { price: number; regular: number; isPromo: boolean; product: string; pack?: number } | null {
+  const [, regular, regName, eff, promo, effName, , regPack, effPack] = t;
+  const regOk = regular > 0 && matchesWords(words, regName);
+  const effOk = eff > 0 && matchesWords(words, effName);
+  // выгодная часть: акция — только если акции включены; без акции — просто более низкая цена этого же товара
+  const effUsable = effOk && (usePromo || !promo);
+  if (effUsable && (!regOk || eff < regular)) {
+    return { price: eff, regular: regOk ? regular : eff, isPromo: !!promo, product: effName, pack: effPack || undefined };
+  }
+  if (regOk) return { price: regular, regular, isPromo: false, product: regName, pack: regPack || undefined };
+  return null;
 }

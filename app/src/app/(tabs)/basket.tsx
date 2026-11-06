@@ -350,13 +350,18 @@ export default function BasketScreen() {
                   textAlign: "center",
                 }}
               >
-                {r
-                  ? `${t("estimate")} ${r.plan.approx ? "≈ " : ""}${money(r.plan.total, lang)}${plan.found < plan.total ? ` · ${t("estimateOf", { n: plan.found, total: plan.total })}` : ""}`
-                  : st.areaStatus === "error" ||
-                      st.areaStatus === "empty" ||
-                      st.error
-                    ? t("noData")
-                    : t("calculating")}
+                {r && plan.total === 0
+                  ? t("plusNoPrice", { n: plan.unpriced.length }).replace(
+                      /^\+/,
+                      "",
+                    )
+                  : r
+                    ? `${t("estimate")} ${r.plan.approx ? "≈ " : ""}${money(r.plan.total, lang)}${plan.found < plan.total ? ` · ${t("estimateOf", { n: plan.found, total: plan.total })}` : ""}`
+                    : st.areaStatus === "error" ||
+                        st.areaStatus === "empty" ||
+                        st.error
+                      ? t("noData")
+                      : t("calculating")}
               </Text>
             </View>
           </Pressable>

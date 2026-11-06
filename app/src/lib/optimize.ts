@@ -22,7 +22,7 @@
 // в своей сети, рядом с ценой КЗП; берётся та, где покупка дешевле. Акции «с карта» участвуют (у тех, кто следит
 // за акциями, карты сетей есть); условные механики (купи 2, от суммы, код) — нет, у них rp не считается.
 
-import { matchesWords } from "./favorites";
+import { favPart } from "./favorites";
 import { itemKey, pinStatus } from "./pins";
 import type { BasketItem, CityFile, PriceTuple } from "./types";
 
@@ -246,17 +246,27 @@ function buildChoices(
       }
       return m;
     }
-    let list = b.brand
+    const list = b.brand
       ? (city.brands?.[String(b.productId)]?.[b.brand] ?? [])
       : (city.items[String(b.productId)] ?? []);
-    // любимый продукт: цена КЗП — только если это он и есть (все слова в названии), а не другой товар той же марки
-    if (b.words?.length)
-      list = list.filter((t) =>
-        matchesWords(b.words!, `${t[2]} ${t[5] ?? ""}`),
-      );
     for (const t of list) {
       if (excluded.has(t[0])) continue;
-      const offer = toOffer(t, opts.usePromo);
+      // любимый продукт: обычная и выгодная части записи проверяются отдельно — другой товар той же марки
+      // (например, другая луканка по акции) не подставляется
+      let offer: Offer;
+      if (b.words?.length) {
+        const part = favPart(t, b.words, opts.usePromo);
+        if (!part) continue;
+        offer = {
+          chain: t[0],
+          price: part.price,
+          regular: part.regular,
+          isPromo: part.isPromo,
+          product: part.product,
+          store: t[6],
+          packPrice: part.pack,
+        };
+      } else offer = toOffer(t, opts.usePromo);
       m.set(t[0], { offer, line: purchase(offer, b.qty, meta) });
     }
     // брошюры: в своей сети заменяют цену КЗП, если покупка выходит дешевле
