@@ -17,6 +17,28 @@ import type { Area, BasketItem, BrochureFile, CityFile, IndexFile, PinnedOffer, 
  */
 export type AreaStatus = "city" | "loading" | "ready" | "partial" | "empty" | "error";
 
+/**
+ * Режим покупок: снимок выбранного плана на момент «Започни пазаруване».
+ * Цены в нём не меняются при обновлении данных; отметки не удаляют товары из корзины.
+ */
+export interface ShoppingLine {
+  key: string;
+  name: string;
+  /** что именно и сколько: «Сирене Верея 400 г · 2 × 400 г» */
+  detail: string;
+  cost: number;
+  emoji: string;
+}
+export interface ShoppingList {
+  startedAt: string;
+  pricesDate: string;
+  total: number;
+  approx: boolean;
+  stores: { chain: string; label?: string; subtotal: number; lines: ShoppingLine[] }[];
+  /** ключи купленных строк (`<магазин>|<позиция>`) */
+  checked: string[];
+}
+
 export interface Settings {
   maxStores: number; // 0 = без лимита
   usePromo: boolean;
@@ -140,6 +162,10 @@ interface Ctx {
   lang: Lang;
   t: T;
   setBrand: (key: string, brand?: string) => void;
+  shopping: ShoppingList | null;
+  startShopping: (list: Omit<ShoppingList, "checked" | "startedAt">) => void;
+  toggleBought: (lineId: string) => void;
+  finishShopping: () => void;
   can: (f: Feature) => boolean;
   paywallOpen: boolean;
   openPaywall: () => void;
@@ -166,6 +192,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [stale, setStale] = useState(false);
   const [ekatte, setEkatte] = useState<string | null>(null);
   const [basket, setBasket] = useState<BasketItem[]>([]);
+  const [shopping, setShopping] = useState<ShoppingList | null>(null);
   const [settings, setSettings] = useState<Settings>({ ...DEFAULT_SETTINGS, lang: deviceLang() });
   const [paywallOpen, setPaywallOpen] = useState(false);
 
@@ -186,6 +213,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const s = saved ? JSON.parse(saved) : {};
           if (Array.isArray(s.basket)) setBasket(s.basket.filter((b: BasketItem) => b && typeof b.productId === "number" && b.qty > 0));
           if (s.settings) setSettings({ ...DEFAULT_SETTINGS, lang: deviceLang(), ...s.settings });
+          if (s.shopping && Array.isArray(s.shopping.stores)) setShopping(s.shopping);
           const known = idx.cities.some((c) => c.ekatte === s.ekatte);
           setEkatte(known ? s.ekatte : idx.cities[0]?.ekatte ?? null);
         }
@@ -268,8 +296,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // Сохранение
   useEffect(() => {
     if (!ready) return;
-    AsyncStorage.setItem(KEY, JSON.stringify({ ekatte, basket, settings })).catch(() => {});
-  }, [ready, ekatte, basket, settings]);
+    AsyncStorage.setItem(KEY, JSON.stringify({ ekatte, basket, settings, shopping })).catch(() => {});
+  }, [ready, ekatte, basket, settings, shopping]);
 
   // Статистика: включаем по согласию, общие свойства, событие запуска
   const opened = useRef(false);
@@ -397,6 +425,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const it = basket.find((x) => itemKey(x) === key);
       track("brand_selected", { group: it?.productId, group_name: it ? productById.get(it.productId)?.bg : undefined, brand: brand ?? "any" });
       setBasket((b) => b.map((x) => (itemKey(x) === key ? { ...x, brand } : x)));
+    },
+    shopping,
+    startShopping: (list) => {
+      track("shopping_started", { stores: list.stores.length, items: list.stores.reduce((n, x) => n + x.lines.length, 0), total: list.total });
+      setShopping({ ...list, startedAt: new Date().toISOString(), checked: [] });
+    },
+    toggleBought: (id) =>
+      setShopping((sh) => (sh ? { ...sh, checked: sh.checked.includes(id) ? sh.checked.filter((x) => x !== id) : [...sh.checked, id] } : sh)),
+    finishShopping: () => {
+      if (shopping) track("shopping_finished", { bought: shopping.checked.length, items: shopping.stores.reduce((n, x) => n + x.lines.length, 0) });
+      setShopping(null);
     },
     can: (f) => canUse(f, settings.isPremium),
     paywallOpen,

@@ -30,6 +30,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg } }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="settings" />
+          <Stack.Screen name="shopping" />
         </Stack>
         <Paywall />
       </StoreProvider>

@@ -7,7 +7,8 @@ import { offerStatus, shortDate, todayIso, unitPriceLabel, visibleChains } from 
 import { itemKey, pinFromBrochure } from "./lib/pins";
 import { useStore } from "./lib/store";
 import type { BrochureOffer } from "./lib/types";
-import { C, Chip, money, qtyLabel, s, Stepper } from "./ui";
+import { chainColor, Icon, OfferCard } from "./components";
+import { C, CAT_EMOJI, Chip, productEmoji, qtyLabel, s } from "./ui";
 
 const fold = (t: string) => t.toLowerCase().replace(/ъ/g, "а").replace(/ё/g, "е");
 
@@ -44,30 +45,26 @@ export function BrochureList({ header }: { header: React.ReactElement }) {
       {header}
       {bro && (
         <>
-          <TextInput
-            value={q}
-            onChangeText={setQ}
-            placeholder={t("brochuresSearch")}
-            placeholderTextColor={C.muted}
-            style={{
-              backgroundColor: C.card,
-              borderWidth: 1,
-              borderColor: C.line,
-              borderRadius: 12,
-              paddingHorizontal: 14,
-              paddingVertical: 11,
-              fontSize: 15,
-              color: C.ink,
-            }}
-          />
+          <View style={[s.row, { backgroundColor: "#EFEAE0", borderRadius: 16, paddingHorizontal: 14, minHeight: 50, gap: 10 }]}>
+            <Icon name="search-outline" size={20} color={C.muted} />
+            <TextInput
+              value={q}
+              onChangeText={setQ}
+              placeholder={t("brochuresSearch")}
+              placeholderTextColor={C.muted}
+              accessibilityLabel={t("brochuresSearch")}
+              style={{ flex: 1, fontSize: 16, color: C.ink, paddingVertical: 11 }}
+            />
+          </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
             <Chip label={`🥦 ${t("onlyFood")}`} active={food} onPress={() => setFood(!food)} />
             <Chip label={t("all")} active={chain == null} onPress={() => setChain(null)} />
             {bro.chains.map((ch, i) =>
               counts.get(i) ? (
-                <Chip
+                <ChainChip
                   key={ch.name}
-                  label={`${ch.name} · ${counts.get(i)}`}
+                  name={ch.name}
+                  count={counts.get(i)}
                   active={chain === i}
                   onPress={() => {
                     setChain(chain === i ? null : i);
@@ -93,7 +90,7 @@ export function BrochureList({ header }: { header: React.ReactElement }) {
       ListHeaderComponent={filters}
       ListEmptyComponent={<Text style={s.muted}>{bro ? t("brochuresEmpty") : t("brochuresNone")}</Text>}
       ListFooterComponent={bro && list.length ? <Text style={[s.muted, { fontSize: 12, marginTop: 12 }]}>{t("brochuresNote")}</Text> : undefined}
-      ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+      ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
       renderItem={({ item }) => <OfferRow o={item} today={today} />}
     />
   );
@@ -104,67 +101,50 @@ function OfferRow({ o, today }: { o: BrochureOffer; today: string }) {
   const { t, lang, brochures: bro } = st;
   const soon = offerStatus(o, today) === "soon";
   const chain = bro?.chains[o.c]?.name ?? "";
-  const id = o.i ?? "";
-  const pinKey = bro && o.p != null ? `pin:${pinFromBrochure(o, bro).id}` : "";
+  const pin = bro && o.p != null ? pinFromBrochure(o, bro) : null;
+  const pinKey = pin ? `pin:${pin.id}` : "";
   const inBasket = pinKey ? st.basket.find((b) => itemKey(b) === pinKey) : undefined;
-  const unit = unitPriceLabel(o.u, lang);
-  const perKg = !!inBasket?.pin?.perKg;
-
-  // иерархия: название → фасовка/цена за единицу → цена → сеть, срок, карта, условие → действие
+  const perKg = !!pin?.perKg;
+  const group = o.g ? st.productById.get(o.g) : undefined;
+  const emoji = group ? productEmoji(group) : CAT_EMOJI[o.a ?? 0] ?? "🏷️";
   return (
-    <View style={[s.card, { padding: 14, gap: 6, opacity: soon ? 0.9 : 1 }]} accessible={false}>
-      <Text style={[s.body, { fontWeight: "700", fontSize: 18 }]}>{o.n}</Text>
-      {(!!o.b || !!unit) && <Text style={s.muted}>{[o.b, unit].filter(Boolean).join(" · ")}</Text>}
-      <View style={[s.row, { gap: 8, alignItems: "baseline", flexWrap: "wrap" }]}>
-        {o.p != null && <Text style={[s.num, { fontWeight: "800", color: C.ink, fontSize: 22 }]}>{money(o.p, lang)}</Text>}
-        {o.r != null && <Text style={[s.muted, { textDecorationLine: "line-through" }]}>{money(o.r, lang)}</Text>}
-        {!!o.d && <Text style={[s.muted, { color: C.promo, fontWeight: "700" }]}>−{o.d}%</Text>}
-      </View>
-      <View style={[s.row, { gap: 6, flexWrap: "wrap", alignItems: "center" }]}>
-        <Badge text={chain} bg="#EEE8DC" color={C.ink} />
-        <Badge
-          text={soon ? `${t("validFrom", { date: shortDate(o.f) })} · ${t("soon")}` : t("validTo", { date: shortDate(o.t) })}
-          bg={soon ? "#FFF1D6" : C.greenSoft}
-          color={soon ? "#8A5A00" : C.green}
-        />
-        {o.k ? <Badge text={`🪪 ${t("withCard")}`} bg="#EEE8DC" color={C.ink} /> : null}
-      </View>
-      {!!o.w && <Text style={[s.muted, { fontSize: 14 }]}>{o.w}</Text>}
-      {bro && o.p != null && (
-        <View style={[s.row, { justifyContent: "flex-end", marginTop: 4 }]}>
-          {inBasket ? (
-            <View style={[s.row, { gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }]}>
-              <Text style={[s.muted, { color: C.green, fontWeight: "700" }]}>✓ {t("inBasketQty")}</Text>
-              <Stepper
-                value={inBasket.qty}
-                label={qtyLabel(inBasket.qty, perKg, t, lang)}
-                onMinus={() => st.setQty(pinKey, Math.round((inBasket.qty - (perKg ? 0.5 : 1)) * 10) / 10)}
-                onPlus={() => st.setQty(pinKey, Math.round((inBasket.qty + (perKg ? 0.5 : 1)) * 10) / 10)}
-              />
-            </View>
-          ) : (
-            <Pressable
-              onPress={() => {
-                track("brochure_added", { group: o.g, chain, product: o.n, pct: o.d, soon, id });
-                st.addPinned(pinFromBrochure(o, bro), o.g && st.productById.has(o.g) ? o.g : 0);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`${t("pinAddA11y")}: ${o.n}, ${chain}`}
-              style={({ pressed }) => [s.btn, { minHeight: 48, paddingVertical: 12, opacity: pressed ? 0.85 : 1 }]}
-            >
-              <Text style={[s.btnText, { fontSize: 16 }]}>+ {t("pinAdd")}</Text>
-            </Pressable>
-          )}
-        </View>
-      )}
-    </View>
+    <OfferCard
+      emoji={emoji}
+      chain={chain}
+      title={o.n}
+      detail={[o.b, unitPriceLabel(o.u, lang)].filter(Boolean).join(" · ")}
+      price={o.p}
+      regular={o.r}
+      pct={o.d}
+      soon={soon}
+      dateLabel={soon ? `${t("validFrom", { date: shortDate(o.f) })} · ${t("soon")}` : t("validTo", { date: shortDate(o.t) })}
+      card={!!o.k}
+      condition={o.w}
+      qty={inBasket?.qty}
+      qtyLabel={inBasket ? qtyLabel(inBasket.qty, perKg, t, lang) : undefined}
+      onAdd={
+        pin
+          ? () => {
+              track("brochure_added", { group: o.g, chain, product: o.n, pct: o.d, soon, id: o.i ?? "" });
+              st.addPinned(pin, o.g && st.productById.has(o.g) ? o.g : 0);
+            }
+          : undefined
+      }
+      onMinus={() => inBasket && st.setQty(pinKey, Math.round((inBasket.qty - (perKg ? 0.5 : 1)) * 10) / 10)}
+      onPlus={() => inBasket && st.setQty(pinKey, Math.round((inBasket.qty + (perKg ? 0.5 : 1)) * 10) / 10)}
+    />
   );
 }
 
-function Badge({ text, bg, color }: { text: string; bg: string; color: string }) {
+/** Фильтр по сети: цветная метка + название (без логотипов сетей) */
+export function ChainChip({ name, count, active, onPress }: { name: string; count?: number; active: boolean; onPress: () => void }) {
   return (
-    <View style={{ backgroundColor: bg, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 }}>
-      <Text style={{ color, fontWeight: "700", fontSize: 12 }}>{text}</Text>
-    </View>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: active }} style={[s.chip, s.row, { gap: 6 }, active && s.chipActive]}>
+      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: active ? "#fff" : chainColor(name) }} />
+      <Text style={[s.chipText, active && { color: "#fff" }]}>
+        {name}
+        {count != null ? ` · ${count}` : ""}
+      </Text>
+    </Pressable>
   );
 }

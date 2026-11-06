@@ -6,7 +6,7 @@ import { useState } from "react";
 import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AreaPicker } from "../../AreaPicker";
-import { DataStatus, Icon, itemName, PinBadge, PinInfo, ScreenHeader } from "../../components";
+import { DataStatus, Icon, itemName, PinBadge, PinInfo, ProductTile, ScreenHeader } from "../../components";
 import { ANALYTICS_AVAILABLE } from "../../lib/analytics";
 import { shortDate } from "../../lib/brochures";
 import { IS_DEMO } from "../../lib/data";
@@ -18,9 +18,6 @@ import type { BasketItem } from "../../lib/types";
 import { usePlan } from "../../lib/usePlan";
 import { Button, C, Card, DemoBanner, H, money, productEmoji, PromoBadge, qtyLabel, Stepper, useK, useS } from "../../ui";
 
-/** «гр. София» → «София» / «Sofia» */
-const cityLabel = (name: string, nameEn: string, lang: string) =>
-  lang === "en" && nameEn ? nameEn : name.replace(/^(гр|с)\. /, "");
 
 export default function BasketScreen() {
   const st = useStore();
@@ -28,7 +25,6 @@ export default function BasketScreen() {
   const s = useS();
   const kf = useK();
   const easy = st.settings.easy === true;
-  const [picker, setPicker] = useState(false);
   const [brandFor, setBrandFor] = useState<string | null>(null);
   const [areaOpen, setAreaOpen] = useState(false);
   const plan = usePlan();
@@ -42,43 +38,45 @@ export default function BasketScreen() {
     );
   }
 
-  const cur = st.index?.cities.find((c) => c.ekatte === st.ekatte);
   const brandItem = brandFor ? st.basket.find((b) => itemKey(b) === brandFor) : undefined;
   const r = plan.result;
+  // цена покупки каждой позиции — из того же плана, что и итог
+  const lineCost = new Map<string, number>();
+  for (const sp of r?.plan.stores ?? []) for (const l of sp.lines) lineCost.set(l.key, l.cost);
 
   return (
     <SafeAreaView style={s.screen} edges={["top"]}>
       <ScrollView contentContainerStyle={[s.pad, { paddingBottom: 170 }]}>
-        <ScreenHeader title={t("appName")} />
+        <ScreenHeader
+          title={t("basketTitle")}
+          subtitle={[
+            st.basket.length ? t("nItems", { n: st.basket.length }) : "",
+            st.index?.date ? t("pricesFromShort", { date: shortDate(st.index.date) }) : "",
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        />
 
-        {/* Город и район — первым делом */}
-        <View style={[s.row, { flexWrap: "wrap", gap: 8 }]}>
+        {/* Район покупок — одной строкой */}
+        {!easy && (
           <Pressable
-            onPress={() => setPicker(true)}
+            onPress={() => setAreaOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel={`${t("city")}: ${cur ? cityLabel(cur.name, cur.nameEn, lang) : t("chooseCity")}`}
-            style={[s.chip, s.row, { gap: 6, borderColor: C.green }]}
+            style={[s.row, { gap: 10, backgroundColor: "#EFEAE0", borderRadius: 14, paddingHorizontal: 14, minHeight: 50 * kf }]}
           >
-            <Icon name="location-outline" size={20} color={C.green} />
-            <Text style={[s.chipText, { fontWeight: "800" }]}>{cur ? cityLabel(cur.name, cur.nameEn, lang) : t("chooseCity")}</Text>
-            <Icon name="chevron-down" size={16} color={C.muted} />
+            <Icon name="storefront-outline" size={22 * kf} color={C.ink} />
+            <Text style={[s.body, { flex: 1, fontWeight: "600" }]}>
+              {st.area.mode === "city"
+                ? t("areaCity")
+                : st.area.mode === "stores"
+                  ? `${t("areaMyStores")} · ${st.areaStoreCount}`
+                  : `${st.area.label} · ${t("km", { n: st.area.radiusKm })}`}
+            </Text>
+            <Icon name="chevron-forward" size={20 * kf} color={C.muted} />
           </Pressable>
-          {!easy && (
-            <Pressable onPress={() => setAreaOpen(true)} accessibilityRole="button" style={[s.chip, s.row, { gap: 6 }]}>
-              <Icon name="storefront-outline" size={20} color={C.ink} />
-              <Text style={s.chipText}>
-                {st.area.mode === "city"
-                  ? t("areaCity")
-                  : st.area.mode === "stores"
-                    ? `${t("areaMyStores")} (${st.areaStoreCount})`
-                    : `${st.area.label} · ${t("km", { n: st.area.radiusKm })}`}
-              </Text>
-              <Icon name="chevron-down" size={16} color={C.muted} />
-            </Pressable>
-          )}
-        </View>
+        )}
 
-        <DataStatus onOpenArea={() => setAreaOpen(true)} />
+        <DataStatus onOpenArea={() => setAreaOpen(true)} compact />
         {IS_DEMO && <DemoBanner />}
 
         {st.basket.length === 0 ? (
@@ -107,21 +105,29 @@ export default function BasketScreen() {
           </>
         ) : (
           <>
-            <View style={[s.row, { justifyContent: "space-between", marginTop: 4 }]}>
-              <H>{t("nItems", { n: st.basket.length })}</H>
+            <View style={[s.row, { justifyContent: "flex-end" }]}>
               <Pressable onPress={st.clearBasket} hitSlop={8} accessibilityRole="button">
                 <Text style={{ color: C.promo, fontWeight: "700", fontSize: 15 }}>{t("clear")}</Text>
               </Pressable>
             </View>
-            <Card style={{ padding: 0 }}>
-              {st.basket.map((b, i) => (
-                <View key={itemKey(b)}>
-                  {i > 0 && <View style={s.divider} />}
-                  <BasketRow b={b} onBrand={() => setBrandFor(itemKey(b))} status={b.pin ? plan.pinStatuses.get(itemKey(b)) : undefined} excluded={excluded} />
-                </View>
-              ))}
-            </Card>
-            <Button title={t("addProducts")} kind="ghost" onPress={() => router.push("/catalog")} />
+            {st.basket.map((b) => (
+              <BasketRow
+                key={itemKey(b)}
+                b={b}
+                cost={lineCost.get(itemKey(b))}
+                onBrand={() => setBrandFor(itemKey(b))}
+                status={b.pin ? plan.pinStatuses.get(itemKey(b)) : undefined}
+                excluded={excluded}
+              />
+            ))}
+            <Pressable
+              onPress={() => router.push("/catalog")}
+              accessibilityRole="button"
+              style={[s.row, { justifyContent: "center", gap: 8, backgroundColor: "#EFEAE0", borderRadius: 14, minHeight: 50 * kf }]}
+            >
+              <Icon name="add" size={22 * kf} color={C.ink} />
+              <Text style={[s.body, { fontWeight: "700" }]}>{t("addProducts").replace(/^\+\s*/, "")}</Text>
+            </Pressable>
           </>
         )}
 
@@ -161,25 +167,18 @@ export default function BasketScreen() {
             accessibilityLabel={
               r ? `${t("seePlan")}. ${t("estimate")} ${money(r.plan.total, lang)}, ${t("estimateOf", { n: plan.found, total: plan.total })}` : t("seePlan")
             }
-            style={({ pressed }) => [s.btn, { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10, opacity: pressed ? 0.85 : 1 }]}
+            style={({ pressed }) => [s.btn, { flexDirection: "row", alignItems: "center", borderRadius: 18, paddingVertical: 12, opacity: pressed ? 0.85 : 1 }]}
           >
-            <Text style={[s.btnText, { flexShrink: 1, textAlign: "left" }]}>{t("seePlan")} →</Text>
-            {r ? (
-              <View style={{ alignItems: "flex-end", flexShrink: 0 }}>
-                <Text style={{ color: "#CFE6D6", fontSize: 13 * kf, fontWeight: "600" }}>{t("estimate")}</Text>
-                <Text style={[s.btnText, { fontSize: 18 * kf }]}>
-                  {r.plan.approx ? "≈ " : ""}
-                  {money(r.plan.total, lang)}
-                </Text>
-                <Text style={{ color: plan.found < plan.total ? "#FFE1D8" : "#CFE6D6", fontSize: 13 * kf, fontWeight: "600" }}>
-                  {t("estimateOf", { n: plan.found, total: plan.total })}
-                </Text>
-              </View>
-            ) : (
-              <Text style={[s.btnText, { fontWeight: "500", fontSize: 15 * kf }]}>
-                {st.areaStatus === "error" || st.areaStatus === "empty" || st.error ? t("noData") : t("calculating")}
+            <View style={{ flex: 1, alignItems: "center" }}>
+              <Text style={[s.btnText, { fontSize: 20 * kf }]}>{t("compareBasket")} →</Text>
+              <Text style={{ color: "#DDEBDF", fontSize: 15 * kf, fontWeight: "600", textAlign: "center" }}>
+                {r
+                  ? `${t("estimate")} ${r.plan.approx ? "≈ " : ""}${money(r.plan.total, lang)}${plan.found < plan.total ? ` · ${t("estimateOf", { n: plan.found, total: plan.total })}` : ""}`
+                  : st.areaStatus === "error" || st.areaStatus === "empty" || st.error
+                    ? t("noData")
+                    : t("calculating")}
               </Text>
-            )}
+            </View>
           </Pressable>
         </View>
       )}
@@ -232,45 +231,27 @@ export default function BasketScreen() {
         </View>
       </Modal>
 
-      <Modal visible={picker} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPicker(false)}>
-        <View style={[s.screen, s.pad]}>
-          <View style={[s.row, { justifyContent: "space-between" }]}>
-            <Text style={[s.title, { fontSize: 22 }]}>{t("city")}</Text>
-            <Pressable onPress={() => setPicker(false)} hitSlop={10} accessibilityRole="button">
-              <Text style={{ color: C.green, fontWeight: "700", fontSize: 17 }}>{t("done")}</Text>
-            </Pressable>
-          </View>
-          <FlatList
-            data={st.index?.cities ?? []}
-            keyExtractor={(c) => c.ekatte}
-            ItemSeparatorComponent={() => <View style={s.divider} />}
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => {
-                  st.selectCity(item.ekatte);
-                  setPicker(false);
-                }}
-                accessibilityRole="button"
-                style={[s.row, { paddingVertical: 14 }]}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.body, { fontWeight: item.ekatte === st.ekatte ? "800" : "500" }]}>{cityLabel(item.name, item.nameEn, lang)}</Text>
-                  <Text style={s.muted}>
-                    {t("cityStats", { chains: st.settings.onlyGrocery ? item.grocery ?? item.chains : item.chains, stores: item.stores, promos: item.promos })}
-                  </Text>
-                </View>
-                {item.ekatte === st.ekatte && <Icon name="checkmark" size={22} color={C.green} />}
-              </Pressable>
-            )}
-          />
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
 
-/** Позиция корзины: название → фасовка → цена → количество; закреплённая акция — с сетью, сроком и условиями */
-function BasketRow({ b, onBrand, status, excluded }: { b: BasketItem; onBrand: () => void; status?: string; excluded: Set<number> }) {
+/**
+ * Карточка позиции (как в концепции): иллюстрация · название · фасовка/марка · цена покупки справа · количество.
+ * Закреплённая акция — с сетью, сроком и условиями; если её нельзя купить сегодня — причина и действия.
+ */
+function BasketRow({
+  b,
+  cost,
+  onBrand,
+  status,
+  excluded,
+}: {
+  b: BasketItem;
+  cost?: number;
+  onBrand: () => void;
+  status?: string;
+  excluded: Set<number>;
+}) {
   const st = useStore();
   const { t, lang } = st;
   const s = useS();
@@ -284,6 +265,7 @@ function BasketRow({ b, onBrand, status, excluded }: { b: BasketItem; onBrand: (
   const c = !b.pin && st.city ? cheapest(st.city, b.productId, st.settings.usePromo, excluded, b.brand) : null;
   const detail = !b.pin && p ? productDetail(p, lang, t) : "";
   const canBrand = !b.pin && !easy && p?.hasBrands && !!st.city?.brands?.[String(p.id)];
+  const noData = st.areaStatus === "error" || st.areaStatus === "empty" || !!st.error;
   const pinProblem =
     b.pin && status && status !== "now"
       ? status === "expired"
@@ -294,45 +276,47 @@ function BasketRow({ b, onBrand, status, excluded }: { b: BasketItem; onBrand: (
           ? t("pinSoon", { date: shortDate(b.pin.from ?? "") })
           : t("pinUnavailable")
       : "";
+  // цена справа: стоимость покупки из плана; без плана — «от …» за единицу
+  const priceRight = cost != null ? money(cost, lang) : "";
+  const priceSub = b.pin
+    ? `${money(b.pin.price, lang)}${b.pin.perKg ? t("perKg") : ""}`
+    : !st.city
+      ? noData
+        ? "—"
+        : t("loading")
+      : c
+        ? `${t("from", { price: money(c.price, lang) })}${p?.byWeight ? t("perKg") : ""}`
+        : t("noPrice");
+  const qtyText = byWeight ? qtyLabel(b.qty, true, t, lang) : String(b.qty).replace(".", lang === "bg" ? "," : ".");
 
   return (
-    <View style={{ padding: 14, gap: 10 }}>
+    <View style={[s.card, { padding: 12, gap: 10 }]}>
       <View style={[s.row, { alignItems: "flex-start", gap: 12 }]}>
-        <Text style={{ fontSize: 30 * kf }} importantForAccessibility="no">
-          {b.pin && !p ? "🏷️" : productEmoji(p)}
-        </Text>
+        <ProductTile emoji={b.pin && !p ? "🏷️" : productEmoji(p)} size={76} />
         <View style={{ flex: 1, gap: 3 }}>
-          <View style={[s.row, { gap: 6, flexWrap: "wrap" }]}>
-            <Text style={[s.body, { fontWeight: "700", fontSize: 18 * kf }]}>{name}</Text>
-            {b.pin && <PinBadge />}
+          <View style={[s.row, { justifyContent: "space-between", alignItems: "flex-start", gap: 8 }]}>
+            <Text style={[s.body, { fontWeight: "800", fontSize: 18 * kf, flex: 1 }]}>{name}</Text>
+            {!!priceRight && <Text style={{ fontSize: 22 * kf, fontWeight: "900", color: C.ink }}>{priceRight}</Text>}
           </View>
           {!!detail && <Text style={s.muted}>{detail}</Text>}
-          {b.pin ? (
-            <>
-              <Text style={[s.muted, { color: C.green, fontWeight: "800", fontSize: 16 * kf }]}>
-                {money(b.pin.price, lang)}
-                {b.pin.perKg ? t("perKg") : ""}
-                {b.pin.regular ? <Text style={{ color: C.muted, fontWeight: "500", textDecorationLine: "line-through" }}> {money(b.pin.regular, lang)}</Text> : null}
-              </Text>
-              <PinInfo pin={b.pin} />
-            </>
-          ) : (
-            <Text style={[s.muted, { color: c ? C.green : st.city ? C.promo : C.muted, fontWeight: "700", fontSize: 16 * kf }]}>
-              {!st.city
-                ? st.areaStatus === "error" || st.areaStatus === "empty" || st.error
-                  ? "—"
-                  : t("loading")
-                : c
-                  ? `${t("from", { price: money(c.price, lang) })}${p?.byWeight ? t("perKg") : ""}`
-                  : t("noPrice")}
-            </Text>
-          )}
-          {!!b.brand && easy && <Text style={s.muted}>🏷️ {brandLabel(b.brand, t)}</Text>}
+          <Text style={[s.muted, { color: c || b.pin ? C.green : !st.city ? C.muted : C.promo, fontWeight: "700" }]}>{priceSub}</Text>
+          {b.pin && <PinInfo pin={b.pin} />}
+          <View style={[s.row, { gap: 6, flexWrap: "wrap" }]}>
+            {b.pin && <PinBadge />}
+            {!!b.brand && (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.greenSoft, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 }}>
+                <Icon name="checkmark" size={14} color={C.green} />
+                <Text style={{ color: C.green, fontWeight: "700", fontSize: 13 * kf }}>
+                  {t("brandChosen")}: {brandLabel(b.brand, t)}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
       </View>
 
       {!!pinProblem && (
-        <View style={[s.card, { gap: 8, backgroundColor: "#FFF8E8", borderColor: "#F0DFA8", padding: 12 }]} accessibilityLiveRegion="polite">
+        <View style={[s.card, { gap: 8, backgroundColor: "#FFF8E8", borderColor: "#F0DFA8", padding: 12, shadowOpacity: 0 }]} accessibilityLiveRegion="polite">
           <Text style={s.body}>⚠️ {pinProblem}</Text>
           <View style={[s.row, { flexWrap: "wrap", gap: 8 }]}>
             {b.productId > 0 && status !== "soon" && (
@@ -347,26 +331,29 @@ function BasketRow({ b, onBrand, status, excluded }: { b: BasketItem; onBrand: (
         </View>
       )}
 
-      <View style={[s.row, { flexWrap: "wrap", gap: 10 }]}>
-        <Stepper
-          value={b.qty}
-          label={qtyLabel(b.qty, byWeight, t, lang)}
-          onMinus={() => st.setQty(key, Math.round((b.qty - step) * 10) / 10)}
-          onPlus={() => st.setQty(key, Math.round((b.qty + step) * 10) / 10)}
-        />
-        {canBrand && (
+      <View style={[s.row, { justifyContent: "space-between", flexWrap: "wrap", gap: 8 }]}>
+        {canBrand ? (
           <Pressable
             onPress={() => (st.can("brandMode") ? onBrand() : st.openPaywall())}
             hitSlop={6}
             accessibilityRole="button"
             accessibilityLabel={`${t("chooseBrand")}: ${b.brand ? brandLabel(b.brand, t) : t("anyBrand")}`}
-            style={[s.chip, { flexDirection: "row", gap: 4 }]}
+            style={[s.row, { gap: 4, minHeight: 44, paddingHorizontal: 4 }]}
           >
-            <Text style={[s.chipText, { color: b.brand ? C.green : C.muted }]}>
-              🏷️ {b.brand ? brandLabel(b.brand, t) : t("brandShort")} ▾{st.can("brandMode") ? "" : " 🔒"}
+            <Icon name="pricetag-outline" size={17} color={C.muted} />
+            <Text style={[s.muted, { fontWeight: "700" }]}>
+              {t("brandShort")} ▾{st.can("brandMode") ? "" : " 🔒"}
             </Text>
           </Pressable>
+        ) : (
+          <View />
         )}
+        <Stepper
+          value={b.qty}
+          label={qtyText}
+          onMinus={() => st.setQty(key, Math.round((b.qty - step) * 10) / 10)}
+          onPlus={() => st.setQty(key, Math.round((b.qty + step) * 10) / 10)}
+        />
       </View>
     </View>
   );
