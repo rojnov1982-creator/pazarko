@@ -13,7 +13,7 @@
 |---|---|
 | Репозиторий | GitHub `rojnov1982-creator/pazarko`, **публичный** (бесплатный GitHub Pages работает только для публичных) |
 | Данные для приложения | GitHub Pages: `https://rojnov1982-creator.github.io/pazarko` (`app/app.json` → `expo.extra.dataUrl`) |
-| Приложение | Expo SDK 57, React Native 0.86, Expo Router; iOS, Android, web |
+| Приложение | Expo SDK 58, React Native 0.88, Expo Router (с 06.11.2026; было SDK 57); iOS, Android, web |
 | Bundle ID / package | `bg.pazarko.app` (iOS и Android), версия 1.0.0 |
 | Premium | выключен (`expo.extra.premiumEnabled: false`), всё открыто |
 | В сторах | не опубликовано (сборок EAS в репозитории не видно) |
@@ -129,7 +129,7 @@ npm test                                                       # тесты ал
 npx tsc --noEmit && npx expo lint                              # до сдачи любой задачи
 ```
 
-Правила из `app/AGENTS.md`: Expo меняется с каждой SDK — сверяться с документацией v57 (`docs.expo.dev/versions/v57.0.0/`,
+Правила из `app/AGENTS.md`: Expo меняется с каждой SDK — сверяться с документацией v58 (`docs.expo.dev/versions/v58.0.0/`,
 `docs.expo.dev/llms.txt`), пакеты ставить через `npx expo install`, навигация только Expo Router, папки `ios/` и
 `android/` не создавать руками (настройка через `app.json` и config plugins), нативные библиотеки требуют development
 build. В репозитории нет ключей и личных данных — так и должно оставаться (он публичный).
