@@ -5,7 +5,7 @@
 import { useMemo, useState } from "react";
 import { FlatList, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BrochureList, ChainChip } from "../../BrochureList";
+import { BrochureList, ChainChip, MyPromosBar } from "../../BrochureList";
 import { OfferCard, ScreenHeader, Segmented } from "../../components";
 import { track } from "../../lib/analytics";
 import { shortDate } from "../../lib/brochures";
@@ -20,13 +20,20 @@ export default function DealsScreen() {
   const st = useStore();
   const { city, t, lang, settings } = st;
   const s = useS();
-  const excluded = useMemo(() => excludedIndexes(city, st.excludedEiks, settings.onlyGrocery), [city, st.excludedEiks, settings.onlyGrocery]);
+  const excluded = useMemo(
+    () => excludedIndexes(city, st.excludedEiks, settings.onlyGrocery),
+    [city, st.excludedEiks, settings.onlyGrocery],
+  );
   const [mode, setMode] = useState<"today" | "brochures">("brochures");
   const [chain, setChain] = useState<number | null>(null);
   const all = (city?.deals ?? []).filter((d) => !excluded.has(d[1]));
   const deals = all.filter((d) => chain == null || d[1] === chain);
   const chains = [...new Set(all.map((d) => d[1]))];
-  const cityName = city ? (lang === "en" && city.nameEn ? city.nameEn : city.name.replace(/^(гр|с)\. /, "")) : "";
+  const cityName = city
+    ? lang === "en" && city.nameEn
+      ? city.nameEn
+      : city.name.replace(/^(гр|с)\. /, "")
+    : "";
 
   const header = (
     <View style={{ gap: 12, marginBottom: 4 }}>
@@ -39,7 +46,11 @@ export default function DealsScreen() {
         value={mode}
         onChange={setMode}
       />
-      <Text style={s.muted}>{mode === "today" ? t("dealsHint", { city: cityName }) : t("brochuresHintMain", { city: cityName })}</Text>
+      <Text style={s.muted}>
+        {mode === "today"
+          ? t("dealsHint", { city: cityName })
+          : t("brochuresHintMain", { city: cityName })}
+      </Text>
       {IS_DEMO && <DemoBanner />}
     </View>
   );
@@ -48,6 +59,7 @@ export default function DealsScreen() {
     return (
       <SafeAreaView style={s.screen} edges={["top"]}>
         <BrochureList header={header} />
+        <MyPromosBar />
       </SafeAreaView>
     );
   }
@@ -57,15 +69,28 @@ export default function DealsScreen() {
       <FlatList
         data={deals}
         keyExtractor={(d, i) => `${d[1]}-${d[0]}-${i}`}
-        contentContainerStyle={[s.pad, { paddingBottom: 32 }]}
+        contentContainerStyle={[s.pad, { paddingBottom: 110 }]}
         ListHeaderComponent={
           <View style={{ gap: 12 }}>
             {header}
             {chains.length > 1 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                <Chip label={t("all")} active={chain == null} onPress={() => setChain(null)} />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8 }}
+              >
+                <Chip
+                  label={t("all")}
+                  active={chain == null}
+                  onPress={() => setChain(null)}
+                />
                 {chains.map((ci) => (
-                  <ChainChip key={ci} name={city?.chains[ci]?.name ?? ""} active={chain === ci} onPress={() => setChain(chain === ci ? null : ci)} />
+                  <ChainChip
+                    key={ci}
+                    name={city?.chains[ci]?.name ?? ""}
+                    active={chain === ci}
+                    onPress={() => setChain(chain === ci ? null : ci)}
+                  />
                 ))}
               </ScrollView>
             )}
@@ -78,34 +103,61 @@ export default function DealsScreen() {
           const p = st.productById.get(gid);
           const pin = city ? pinFromDeal(d, city, !!p?.byWeight) : null;
           const key = pin ? `pin:${pin.id}` : "";
-          const inBasket = key ? st.basket.find((b) => itemKey(b) === key) : undefined;
+          const inBasket = key
+            ? st.basket.find((b) => itemKey(b) === key)
+            : undefined;
           const step = p?.byWeight ? 0.5 : 1;
           return (
             <OfferCard
               emoji={productEmoji(p)}
               chain={city?.chains[ci]?.name ?? ""}
               title={product}
-              detail={[p ? splitName(productName(p, lang), lang)[0] : "", t("dealStores", { n: stores })].filter(Boolean).join(" · ")}
+              detail={[
+                p ? splitName(productName(p, lang), lang)[0] : "",
+                t("dealStores", { n: stores }),
+              ]
+                .filter(Boolean)
+                .join(" · ")}
               price={promo}
               regular={shelf}
               pct={pct}
-              dateLabel={t("validTo", { date: city ? shortDate(city.date) : "" })}
+              dateLabel={t("validTo", {
+                date: city ? shortDate(city.date) : "",
+              })}
               qty={inBasket?.qty}
-              qtyLabel={inBasket ? (p?.byWeight ? qtyLabel(inBasket.qty, true, t, lang) : String(inBasket.qty)) : undefined}
+              qtyLabel={
+                inBasket
+                  ? p?.byWeight
+                    ? qtyLabel(inBasket.qty, true, t, lang)
+                    : String(inBasket.qty)
+                  : undefined
+              }
               onAdd={
                 pin
                   ? () => {
-                      track("deal_added", { group: gid, chain: city?.chains[ci]?.name, pct, product });
+                      track("deal_added", {
+                        group: gid,
+                        chain: city?.chains[ci]?.name,
+                        pct,
+                        product,
+                      });
                       st.addPinned(pin, gid);
                     }
                   : undefined
               }
-              onMinus={() => inBasket && st.setQty(key, Math.round((inBasket.qty - step) * 10) / 10)}
-              onPlus={() => inBasket && st.setQty(key, Math.round((inBasket.qty + step) * 10) / 10)}
+              onMinus={() =>
+                inBasket &&
+                st.setQty(key, Math.round((inBasket.qty - step) * 10) / 10)
+              }
+              onPlus={() =>
+                inBasket &&
+                st.setQty(key, Math.round((inBasket.qty + step) * 10) / 10)
+              }
             />
           );
         }}
       />
+      <MyPromosBar />
     </SafeAreaView>
   );
 }

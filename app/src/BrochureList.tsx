@@ -20,6 +20,8 @@ import {
 } from "./lib/brochures";
 import { productName, sizeLabel, splitName } from "./lib/i18n";
 import { itemKey, pinFromBrochure } from "./lib/pins";
+import { weeklyPromoBasket } from "./lib/promoBasket";
+import { router } from "expo-router";
 import { useStore } from "./lib/store";
 import type { BrochureOffer } from "./lib/types";
 import type { TKey } from "./lib/i18n";
@@ -193,6 +195,8 @@ export function BrochureList({ header }: { header: React.ReactElement }) {
               }}
             />
           </View>
+          {/* готовая корзина из лучших акций недели */}
+          <WeeklyCard visible={visible} today={today} />
           {/* 1) раздел — главный фильтр: плитки, все видны сразу */}
           <CategoryGrid
             value={cat}
@@ -237,7 +241,7 @@ export function BrochureList({ header }: { header: React.ReactElement }) {
     <FlatList
       data={list}
       keyExtractor={(o, i) => `${o.c}-${i}-${o.n}`}
-      contentContainerStyle={[s.pad, { paddingBottom: 32 }]}
+      contentContainerStyle={[s.pad, { paddingBottom: 110 }]}
       keyboardShouldPersistTaps="handled"
       initialNumToRender={12}
       windowSize={7}
@@ -257,6 +261,181 @@ export function BrochureList({ header }: { header: React.ReactElement }) {
       ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
       renderItem={({ item }) => <OfferRow o={item} today={today} />}
     />
+  );
+}
+
+function WeeklyCard({ visible, today }: { visible: boolean[]; today: string }) {
+  const st = useStore();
+  const { t, lang, brochures: bro } = st;
+  const k = useK();
+  const [open, setOpen] = useState(false);
+  const wk = useMemo(
+    () =>
+      weeklyPromoBasket(bro, visible, today, {
+        hasGroup: (id) => st.productById.has(id),
+        // семейство = значок продукта (кафе на зърна и мляно — одно ☕)
+        family: (id) => productEmoji(st.productById.get(id)),
+      }),
+    [bro, visible, today, st.productById],
+  );
+  if (!wk || !bro) return null;
+  const m = (n: number) => money(n, lang);
+  const names = wk.chains.map((c) => bro.chains[c]?.name ?? "").join(" + ");
+  const inBasket = new Set(st.basket.map(itemKey));
+  const missing = wk.picks.filter((p) => !inBasket.has(`pin:${p.pin.id}`));
+  return (
+    <View
+      style={{
+        borderRadius: 20,
+        backgroundColor: C.green,
+        padding: 16,
+        gap: 10,
+      }}
+    >
+      <View style={[s.row, { gap: 10, alignItems: "flex-start" }]}>
+        <Text style={{ fontSize: 34 * k }}>🧺</Text>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text
+            style={{ color: "#fff", fontSize: 20 * k, fontWeight: "900" }}
+            accessibilityRole="header"
+          >
+            {t("weeklyTitle")}
+          </Text>
+          <Text
+            style={{ color: "#E3F0E5", fontSize: 15 * k, fontWeight: "600" }}
+          >
+            {t("weeklySub", { n: wk.picks.length, chains: names })}
+          </Text>
+        </View>
+      </View>
+      <View
+        style={[s.row, { gap: 10, flexWrap: "wrap", alignItems: "baseline" }]}
+      >
+        <Text
+          style={{
+            color: "#fff",
+            fontSize: 32 * k,
+            fontWeight: "900",
+            letterSpacing: -0.5,
+          }}
+        >
+          {m(wk.total)}
+        </Text>
+        <Text
+          style={{
+            color: "#CFE3D3",
+            fontSize: 16 * k,
+            textDecorationLine: "line-through",
+          }}
+        >
+          {t("weeklyUsual", { amount: m(wk.regular) })}
+        </Text>
+      </View>
+      <Text style={{ color: "#fff", fontSize: 16 * k, fontWeight: "800" }}>
+        {t("weeklySave", {
+          amount: m(Math.round((wk.regular - wk.total) * 100) / 100),
+        })}
+      </Text>
+      <Text
+        style={{ fontSize: 22 * k, letterSpacing: 2 }}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        {wk.picks
+          .map((p) => productEmoji(st.productById.get(p.productId)))
+          .join(" ")}
+      </Text>
+      {open && (
+        <View
+          style={{
+            backgroundColor: "rgba(255,255,255,0.12)",
+            borderRadius: 14,
+            padding: 10,
+            gap: 6,
+          }}
+        >
+          {wk.picks.map((p) => (
+            <View
+              key={p.pin.id}
+              style={[s.row, { gap: 8, alignItems: "flex-start" }]}
+            >
+              <Text style={{ fontSize: 16 * k }}>
+                {productEmoji(st.productById.get(p.productId))}
+              </Text>
+              <Text style={{ flex: 1, color: "#fff", fontSize: 14.5 * k }}>
+                {p.offer.n}{" "}
+                <Text style={{ color: "#CFE3D3" }}>
+                  · {bro.chains[p.offer.c]?.name}
+                </Text>
+              </Text>
+              <Text
+                style={{ color: "#fff", fontWeight: "800", fontSize: 14.5 * k }}
+              >
+                {m(p.offer.p!)}
+              </Text>
+            </View>
+          ))}
+          <Text style={{ color: "#CFE3D3", fontSize: 13 * k }}>
+            {t("weeklyNote", { stores: names })}
+          </Text>
+        </View>
+      )}
+      <View style={[s.row, { gap: 10 }]}>
+        <Pressable
+          onPress={() => {
+            if (!missing.length) return router.push("/promos");
+            for (const p of missing) st.addPinned(p.pin, p.productId);
+            track("weekly_basket_added", {
+              items: missing.length,
+              chains: names,
+              total: wk.total,
+            });
+          }}
+          accessibilityRole="button"
+          style={({ pressed }) => ({
+            flex: 1,
+            minHeight: 50 * k,
+            borderRadius: 14,
+            backgroundColor: "#fff",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 8,
+            opacity: pressed ? 0.85 : 1,
+          })}
+        >
+          <Text
+            style={{
+              color: C.green,
+              fontWeight: "900",
+              fontSize: 16 * k,
+              textAlign: "center",
+            }}
+          >
+            {missing.length
+              ? t("weeklyAddAll", { n: missing.length })
+              : `✓ ${t("myPromos")} →`}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setOpen(!open)}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
+          style={{
+            minHeight: 50 * k,
+            borderRadius: 14,
+            borderWidth: 1.5,
+            borderColor: "#fff",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 14,
+          }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "800", fontSize: 15 * k }}>
+            {open ? t("weeklyHide") : t("weeklyShow")}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -463,5 +642,50 @@ export function ChainChip({
         {count != null ? ` · ${count}` : ""}
       </Text>
     </Pressable>
+  );
+}
+
+/** Плашка внизу «Оферти»: сколько акций выбрано и на какую сумму → «Моите акции» */
+export function MyPromosBar() {
+  const st = useStore();
+  const { t, lang } = st;
+  const k = useK();
+  const pins = st.basket.filter((b) => b.pin);
+  if (!pins.length) return null;
+  const total =
+    Math.round(
+      pins.reduce((sum, b) => sum + b.qty * (b.pin?.price ?? 0), 0) * 100,
+    ) / 100;
+  return (
+    <View style={{ position: "absolute", left: 16, right: 16, bottom: 12 }}>
+      <Pressable
+        onPress={() => router.push("/promos")}
+        accessibilityRole="button"
+        style={({ pressed }) => ({
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+          minHeight: 58 * k,
+          borderRadius: 18,
+          paddingHorizontal: 16,
+          backgroundColor: C.ink,
+          opacity: pressed ? 0.9 : 1,
+        })}
+      >
+        <Text style={{ fontSize: 24 * k }}>🧺</Text>
+        <Text
+          style={{
+            flex: 1,
+            color: "#fff",
+            fontWeight: "800",
+            fontSize: 16.5 * k,
+          }}
+          numberOfLines={2}
+        >
+          {t("myPromosBar", { n: pins.length, amount: money(total, lang) })}
+        </Text>
+        <Icon name="chevron-forward" size={22 * k} color="#fff" />
+      </Pressable>
+    </View>
   );
 }
