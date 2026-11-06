@@ -24,6 +24,8 @@ export interface Settings {
   lang: Lang;
   /** согласие на анонимную статистику: null — ещё не спрашивали */
   analytics: boolean | null;
+  /** «Лесен режим»: крупнее и меньше кнопок; null — ещё не выбирали (спрашиваем при первом запуске) */
+  easy: boolean | null;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -38,10 +40,11 @@ const DEFAULT_SETTINGS: Settings = {
   areas: {},
   lang: "bg",
   analytics: null,
+  easy: null,
 };
 
 /** настройки, изменения которых пишем в статистику */
-const TRACKED_SETTINGS = ["maxStores", "usePromo", "extraStoreCost", "onlyGrocery", "showDeals", "hideMedicines", "lang"] as const;
+const TRACKED_SETTINGS = ["maxStores", "usePromo", "extraStoreCost", "onlyGrocery", "showDeals", "hideMedicines", "lang", "easy"] as const;
 
 export const PRESETS: { id: string; title: TKey; emoji: string; items: BasketItem[] }[] = [
   {

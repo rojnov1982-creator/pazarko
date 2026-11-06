@@ -5,9 +5,10 @@ import { DATA_URL, IS_DEMO } from "../lib/data";
 import { LANGS } from "../lib/i18n";
 import { PREMIUM_ENABLED } from "../lib/premium";
 import { useStore } from "../lib/store";
-import { C, Card, Chip, H, money, s, Stepper } from "../ui";
+import { C, Card, Chip, H, money, Stepper, useS } from "../ui";
 
 function Toggle({ title, sub, value, onChange }: { title: string; sub?: string; value: boolean; onChange: (v: boolean) => void }) {
+  const s = useS();
   return (
     <View style={[s.row, { justifyContent: "space-between", paddingVertical: 4 }]}>
       <View style={{ flex: 1 }}>
@@ -22,11 +23,17 @@ function Toggle({ title, sub, value, onChange }: { title: string; sub?: string; 
 export default function SettingsScreen() {
   const st = useStore();
   const { settings: cfg, city, index, t, lang } = st;
+  const s = useS();
+  const easy = cfg.easy === true;
 
   return (
     <SafeAreaView style={s.screen} edges={["top"]}>
       <ScrollView contentContainerStyle={[s.pad, { paddingBottom: 32 }]}>
         <Text style={s.title}>{t("tabSettings")}</Text>
+
+        <Card style={{ borderColor: C.green, borderWidth: easy ? 2 : 1 }}>
+          <Toggle title={`👓 ${t("easyMode")}`} sub={t("easyModeSub")} value={easy} onChange={(v) => st.updateSettings({ easy: v })} />
+        </Card>
 
         <H>{t("language")}</H>
         <View style={[s.row, { gap: 8 }]}>
@@ -48,6 +55,10 @@ export default function SettingsScreen() {
         </Pressable>
         )}
 
+        {easy ? (
+          <Text style={s.muted}>{t("easyMoreHint")}</Text>
+        ) : (
+        <>
         <H style={{ marginTop: 6 }}>{t("calc")}</H>
         <Card style={{ gap: 12 }}>
           <Toggle title={t("usePromo")} sub={t("usePromoSub")} value={cfg.usePromo} onChange={(v) => st.updateSettings({ usePromo: v })} />
@@ -100,6 +111,9 @@ export default function SettingsScreen() {
             />
           ))}
         </Card>
+
+        </>
+        )}
 
         <H style={{ marginTop: 6 }}>{t("privacy")}</H>
         <Card style={{ gap: 12 }}>

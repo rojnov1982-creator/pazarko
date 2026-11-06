@@ -8,7 +8,7 @@ import { brandLabel, OWN_BRAND, productDetail, productName, splitName } from "..
 import { brandsInCity, cheapest, excludedIndexes } from "../lib/prices";
 import { PRESETS, useStore } from "../lib/store";
 import { AreaPicker } from "../AreaPicker";
-import { Button, C, Card, DemoBanner, H, money, productEmoji, PromoBadge, qtyLabel, s, Stepper } from "../ui";
+import { Button, C, Card, DemoBanner, H, money, productEmoji, PromoBadge, qtyLabel, Stepper, useK, useS } from "../ui";
 
 /** «гр. София» → «София» / «Sofia» */
 const cityLabel = (name: string, nameEn: string, lang: string) =>
@@ -24,6 +24,9 @@ export default function BasketScreen() {
     () => excludedIndexes(st.city, st.settings.excludedChains, st.settings.onlyGrocery),
     [st.city, st.settings.excludedChains, st.settings.onlyGrocery],
   );
+  const s = useS();
+  const kf = useK();
+  const easy = st.settings.easy === true;
 
   if (!st.ready) {
     return (
@@ -50,6 +53,7 @@ export default function BasketScreen() {
             <Text style={{ color: C.muted }}>▾</Text>
           </Pressable>
         </View>
+        {!easy && (
         <Text style={s.muted}>
           {t("pricesOn", { date: st.index?.date ?? "—" })} · {!st.city
             ? t("loading")
@@ -57,6 +61,8 @@ export default function BasketScreen() {
               ? t("storesFound", { n: st.city.chains.length })
               : t("chainsInCity", { n: st.city.chains.filter((c) => !st.settings.onlyGrocery || !c.kind || c.kind === "grocery").length })}
         </Text>
+        )}
+        {!easy && (
         <Pressable onPress={() => setAreaOpen(true)} style={[s.chip, s.row, { gap: 6, alignSelf: "flex-start" }]}>
           <Text>🏪</Text>
           <Text style={s.chipText}>
@@ -68,9 +74,34 @@ export default function BasketScreen() {
           </Text>
           <Text style={{ color: C.muted }}>▾</Text>
         </Pressable>
+        )}
         {st.area.mode !== "city" && st.areaStoreCount === 0 && <Text style={{ color: C.promo }}>{t("noStoresInArea")}</Text>}
         {IS_DEMO && <DemoBanner />}
-        {ANALYTICS_AVAILABLE && st.settings.analytics === null && (
+        {st.settings.easy == null && (
+          <Card style={{ gap: 12, borderColor: C.green, borderWidth: 2 }}>
+            <Text style={[s.body, { fontWeight: "800", fontSize: 22 }]}>{t("easyAskTitle")}</Text>
+            {([true, false] as const).map((v) => (
+              <Pressable
+                key={String(v)}
+                onPress={() => st.updateSettings({ easy: v })}
+                style={({ pressed }) => [
+                  s.btn,
+                  !v && s.btnGhost,
+                  { alignItems: "flex-start", paddingHorizontal: 18, opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <Text style={[s.btnText, { fontSize: v ? 22 : 18, color: v ? "#fff" : C.green }]}>
+                  {v ? "👓 " : "⚙️ "}
+                  {t(v ? "easyAskEasy" : "easyAskFull")}
+                </Text>
+                <Text style={{ color: v ? "#CFE6D6" : C.muted, fontSize: v ? 17 : 15, marginTop: 2 }}>
+                  {t(v ? "easyAskEasySub" : "easyAskFullSub")}
+                </Text>
+              </Pressable>
+            ))}
+          </Card>
+        )}
+        {ANALYTICS_AVAILABLE && st.settings.easy != null && st.settings.analytics === null && (
           <Card style={{ gap: 8, backgroundColor: C.greenSoft, borderColor: C.greenSoft }}>
             <Text style={[s.body, { fontWeight: "700" }]}>📊 {t("analyticsAskTitle")}</Text>
             <Text style={s.muted}>{t("analyticsAskText")}</Text>
@@ -91,7 +122,7 @@ export default function BasketScreen() {
         {st.basket.length === 0 ? (
           <>
             <Card style={{ gap: 14 }}>
-              <Text style={[s.body, { fontWeight: "800", fontSize: 20 }]}>{t("howTitle")}</Text>
+              <Text style={[s.body, { fontWeight: "800", fontSize: 20 * kf }]}>{t("howTitle")}</Text>
               {(["how1", "how2", "how3"] as const).map((k, i) => (
                 <View key={k} style={[s.row, { alignItems: "flex-start", gap: 12 }]}>
                   <View
@@ -99,7 +130,7 @@ export default function BasketScreen() {
                   >
                     <Text style={{ color: "#fff", fontWeight: "800", fontSize: 18 }}>{i + 1}</Text>
                   </View>
-                  <Text style={[s.body, { flex: 1, fontSize: 18, marginTop: 5 }]}>{t(k)}</Text>
+                  <Text style={[s.body, { flex: 1, fontSize: 18 * kf, marginTop: 5 }]}>{t(k)}</Text>
                 </View>
               ))}
               <Button title={t("pickProducts")} onPress={() => router.push("/catalog")} style={{ marginTop: 4 }} />
@@ -141,10 +172,10 @@ export default function BasketScreen() {
                     {/* две строки: название целиком, ниже количество и марка — ничего не обрезается при крупном шрифте */}
                     <View style={{ padding: 14, gap: 10 }}>
                       <View style={[s.row, { alignItems: "flex-start", gap: 12 }]}>
-                        <Text style={{ fontSize: 30 }}>{productEmoji(p)}</Text>
+                        <Text style={{ fontSize: 30 * kf }}>{productEmoji(p)}</Text>
                         <View style={{ flex: 1, gap: 2 }}>
-                          <Text style={[s.body, { fontWeight: "700", fontSize: 18 }]}>{name}</Text>
-                          <Text style={[s.muted, { color: c ? C.green : C.promo, fontWeight: "700", fontSize: 16 }]}>
+                          <Text style={[s.body, { fontWeight: "700", fontSize: 18 * kf }]}>{name}</Text>
+                          <Text style={[s.muted, { color: c ? C.green : C.promo, fontWeight: "700", fontSize: 16 * kf }]}>
                             {c ? `${t("from", { price: money(c.price, lang) })}${p.byWeight ? t("perKg") : ""}` : t("notInCity")}
                           </Text>
                           {!!detail && <Text style={s.muted}>{detail}</Text>}
@@ -157,7 +188,7 @@ export default function BasketScreen() {
                           onMinus={() => st.setQty(b.productId, Math.round((b.qty - step) * 10) / 10)}
                           onPlus={() => st.setQty(b.productId, Math.round((b.qty + step) * 10) / 10)}
                         />
-                        {canBrand && (
+                        {canBrand && !easy && (
                           <Pressable
                             onPress={() => (st.can("brandMode") ? setBrandFor(p.id) : st.openPaywall())}
                             hitSlop={6}
@@ -189,7 +220,7 @@ export default function BasketScreen() {
             ]}
           >
             <Text style={[s.btnText, { flexShrink: 1, textAlign: "left" }]}>{t("findBest")} →</Text>
-            <Text style={[s.btnText, { fontWeight: "500", fontSize: 16, flexShrink: 0, marginLeft: 8 }]}>
+            <Text style={[s.btnText, { fontWeight: "500", fontSize: 16 * kf, flexShrink: 0, marginLeft: 8 }]}>
               {t("from", { price: money(estimate, lang) })}
             </Text>
           </Pressable>

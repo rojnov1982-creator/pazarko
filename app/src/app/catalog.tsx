@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { cheapest, excludedIndexes } from "../lib/prices";
 import { useStore } from "../lib/store";
 import { categoryName, productDetail, productName, splitName } from "../lib/i18n";
-import { C, CAT_EMOJI, Chip, money, productEmoji, PromoBadge, qtyLabel, s, Stepper } from "../ui";
+import { C, CAT_EMOJI, Chip, money, productEmoji, PromoBadge, qtyLabel, Stepper, useK, useS } from "../ui";
 
 const fold = (t: string) => t.toLowerCase().replace(/ъ/g, "а").replace(/ё/g, "е");
 
@@ -13,6 +13,8 @@ export default function CatalogScreen() {
   const { t, lang } = st;
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<number | null>(null);
+  const s = useS();
+  const kf = useK();
   const excluded = useMemo(
     () => excludedIndexes(st.city, st.settings.excludedChains, st.settings.onlyGrocery),
     [st.city, st.settings.excludedChains, st.settings.onlyGrocery],
@@ -72,12 +74,12 @@ export default function CatalogScreen() {
           const step = st.qtyStep(p.id);
           return (
             <View style={[s.row, { paddingVertical: 14, flexWrap: "wrap" }]}>
-              <Text style={{ fontSize: 30 }}>{productEmoji(p)}</Text>
+              <Text style={{ fontSize: 30 * kf }}>{productEmoji(p)}</Text>
               <View style={{ flex: 1, minWidth: 160, gap: 2 }}>
-                <Text style={[s.body, { fontWeight: "700", fontSize: 18 }]}>{name}</Text>
+                <Text style={[s.body, { fontWeight: "700", fontSize: 18 * kf }]}>{name}</Text>
                 {!!detail && <Text style={s.muted}>{detail}</Text>}
                 <View style={[s.row, { gap: 6, flexWrap: "wrap" }]}>
-                  <Text style={[s.muted, { color: c ? C.green : C.muted, fontWeight: "700", fontSize: 16 }]}>
+                  <Text style={[s.muted, { color: c ? C.green : C.muted, fontWeight: "700", fontSize: 16 * kf }]}>
                     {c ? `${t("from", { price: money(c.price, lang) })}${p.byWeight ? t("perKg") : ""}` : t("noData")}
                   </Text>
                   {c?.promo && <PromoBadge />}
@@ -95,9 +97,9 @@ export default function CatalogScreen() {
                   onPress={() => st.addItem(p.id)}
                   disabled={!c}
                   style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 26,
+                    width: 52 * kf,
+                    height: 52 * kf,
+                    borderRadius: 26 * kf,
                     backgroundColor: c ? C.green : C.line,
                     alignItems: "center",
                     justifyContent: "center",

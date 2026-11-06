@@ -11,12 +11,15 @@ import { FREE_MAX_STORES } from "../lib/premium";
 import { bestPromo, excludedIndexes } from "../lib/prices";
 import { useStore } from "../lib/store";
 import type { BrochureOffer } from "../lib/types";
-import { Button, C, Card, Chip, DemoBanner, H, mono, money, PromoBadge, qtyLabel, s } from "../ui";
+import { Button, C, Card, Chip, DemoBanner, H, mono, money, productEmoji, PromoBadge, qtyLabel, useK, useS } from "../ui";
 
 export default function ResultScreen() {
   const st = useStore();
   const { city, basket, settings, t, lang } = st;
   const m = (n: number) => money(n, lang);
+  const s = useS();
+  const kf = useK();
+  const easy = settings.easy === true;
 
   // без Premium план ограничен FREE_MAX_STORES магазинами
   const maxStores =
@@ -102,6 +105,53 @@ export default function ResultScreen() {
   const { plan, bestSingle, savings, savingsPct, singles, ideal } = result;
   const chainName = (i: number) => city.chains[i]?.name ?? "?";
   const name = (id: number) => splitName(productName(st.productById.get(id), lang), lang)[0];
+
+  // Лесен режим: большая сумма, экономия одной фразой и что купить в каком магазине — без подсказок и сравнений
+  if (easy) {
+    return (
+      <SafeAreaView style={s.screen} edges={["top"]}>
+        <ScrollView contentContainerStyle={[s.pad, { paddingBottom: 32 }]}>
+          <Text style={s.title}>{t("tabSavings")}</Text>
+          <View style={{ backgroundColor: C.green, borderRadius: 22, padding: 20, gap: 6 }}>
+            <Text style={{ color: "#CFE6D6", fontWeight: "700", fontSize: 18 * kf }}>{t("easyTotal")}</Text>
+            <Text style={{ color: "#fff", fontSize: 44 * kf, fontWeight: "800", fontFamily: mono }}>{m(plan.total)}</Text>
+            {bestSingle && savings > 0.004 && (
+              <Text style={{ color: "#fff", fontSize: 18 * kf }}>{t("easySaving", { amount: m(savings), chain: chainName(bestSingle.chain) })}</Text>
+            )}
+            {plan.missing.length > 0 && (
+              <Text style={{ color: "#FFE1D8", fontSize: 16 * kf, marginTop: 4 }}>
+                {t(st.area.mode === "city" ? "notFound" : "notFoundArea", { list: plan.missing.map(name).join(", ") })}
+              </Text>
+            )}
+          </View>
+          {plan.stores.map((sp, n) => (
+            <Card key={sp.chain} style={{ gap: 12 }}>
+              <Text style={[s.body, { fontWeight: "800", fontSize: 22 * kf }]}>
+                {n + 1}. {t("easyBuyIn", { chain: chainName(sp.chain) })}
+              </Text>
+              {sp.lines.map((l) => {
+                const p = st.productById.get(l.productId);
+                return (
+                  <View key={l.productId} style={[s.row, { alignItems: "flex-start", gap: 12 }]}>
+                    <Text style={{ fontSize: 28 * kf }}>{productEmoji(p)}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.body, { fontWeight: "700" }]}>{name(l.productId)}</Text>
+                      <Text style={s.muted}>
+                        {qtyLabel(l.qty, !!p?.byWeight, t, lang)} × {m(l.offer.price)}
+                      </Text>
+                    </View>
+                    <Text style={[s.body, s.num, { fontWeight: "800" }]}>{m(l.cost)}</Text>
+                  </View>
+                );
+              })}
+              <View style={s.divider} />
+              <Text style={[s.body, s.num, { fontWeight: "800", textAlign: "right" }]}>{m(sp.subtotal)}</Text>
+            </Card>
+          ))}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
   const maxTotal = Math.max(plan.total, ...singles.map((x) => x.total));
   const extraSaving = Math.round((plan.total - ideal.total) * 100) / 100;
   const limits = [
@@ -327,6 +377,7 @@ function CompareRow({
   warn?: boolean;
   fmt: (n: number) => string;
 }) {
+  const s = useS();
   return (
     <View style={{ gap: 5 }}>
       <View style={[s.row, { justifyContent: "space-between" }]}>

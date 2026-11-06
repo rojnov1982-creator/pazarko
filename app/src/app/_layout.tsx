@@ -14,7 +14,7 @@ const icon = (emoji: string) => ({ focused }: { focused: boolean }) => (
 );
 
 function AppTabs() {
-  const { basket, t } = useStore();
+  const { basket, t, settings } = useStore();
   const pathname = usePathname();
   useEffect(() => {
     track("$screen", { $screen_name: pathname === "/" ? "basket" : pathname.replace(/^\//, "") });
@@ -37,7 +37,7 @@ function AppTabs() {
         name="index"
         options={{ title: t("tabBasket"), tabBarIcon: icon("🧺"), tabBarBadge: basket.length || undefined }}
       />
-      <Tabs.Screen name="deals" options={{ title: t("tabDeals"), tabBarIcon: icon("🔥") }} />
+      <Tabs.Screen name="deals" options={{ title: t("tabDeals"), tabBarIcon: icon("🔥"), href: settings.easy ? null : undefined }} />
       <Tabs.Screen name="catalog" options={{ title: t("tabProducts"), tabBarIcon: icon("🔎") }} />
       <Tabs.Screen name="result" options={{ title: t("tabSavings"), tabBarIcon: icon("💶") }} />
       <Tabs.Screen name="settings" options={{ title: t("tabSettings"), tabBarIcon: icon("⚙️") }} />
