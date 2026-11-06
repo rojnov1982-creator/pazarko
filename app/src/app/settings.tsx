@@ -4,6 +4,7 @@ import { ANALYTICS_AVAILABLE, track } from "../lib/analytics";
 import { DATA_URL, IS_DEMO } from "../lib/data";
 import { LANGS } from "../lib/i18n";
 import { PREMIUM_ENABLED } from "../lib/premium";
+import { isMetro } from "../lib/prices";
 import { useStore } from "../lib/store";
 import { C, Card, Chip, H, money, Stepper, useS } from "../ui";
 
@@ -86,6 +87,8 @@ export default function SettingsScreen() {
           <Toggle title={t("showDeals")} sub={t("showDealsSub")} value={cfg.showDeals} onChange={(v) => st.updateSettings({ showDeals: v })} />
           <View style={s.divider} />
           <Toggle title={t("hideMeds")} sub={t("hideMedsSub")} value={cfg.hideMedicines} onChange={(v) => st.updateSettings({ hideMedicines: v })} />
+          <View style={s.divider} />
+          <Toggle title={t("metro")} sub={t("metroSub")} value={cfg.includeMetro} onChange={(v) => st.updateSettings({ includeMetro: v })} />
         </Card>
 
         <H style={{ marginTop: 6 }}>{t("chainsInCityTitle")}</H>
@@ -99,14 +102,15 @@ export default function SettingsScreen() {
               title={c.label ? `${c.name} · ${c.label}` : c.name}
               sub={
                 t("chainSub", { n: c.stores, eik: c.eik }) +
-                (c.kind === "pharmacy" ? ` · ${t("kindPharmacy")}` : c.kind === "other" ? ` · ${t("kindOther")}` : "")
+                (c.kind === "pharmacy" ? ` · ${t("kindPharmacy")}` : c.kind === "other" ? ` · ${t("kindOther")}` : "") +
+                (isMetro(c) ? ` · ${t("metroCard")}` : "")
               }
-              value={!cfg.excludedChains.includes(c.eik)}
+              value={!cfg.excludedChains.includes(c.eik) && (!isMetro(c) || cfg.includeMetro)}
               onChange={(v) => {
                 track(v ? "chain_included" : "chain_excluded", { chain: c.name, eik: c.eik });
-                st.updateSettings({
-                  excludedChains: v ? cfg.excludedChains.filter((e) => e !== c.eik) : [...cfg.excludedChains, c.eik],
-                });
+                const excludedChains = v ? cfg.excludedChains.filter((e) => e !== c.eik) : [...cfg.excludedChains, c.eik];
+                // строка Metro управляет тем же флагом, что и переключатель «Metro» выше
+                st.updateSettings(isMetro(c) ? { includeMetro: v, excludedChains: cfg.excludedChains.filter((e) => e !== c.eik) } : { excludedChains });
               }}
             />
           ))}

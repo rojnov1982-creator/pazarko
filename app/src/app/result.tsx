@@ -25,8 +25,8 @@ export default function ResultScreen() {
   const maxStores =
     st.can("moreStores") || (settings.maxStores > 0 && settings.maxStores <= FREE_MAX_STORES) ? settings.maxStores : FREE_MAX_STORES;
   const excluded = useMemo(
-    () => excludedIndexes(city, settings.excludedChains, settings.onlyGrocery),
-    [city, settings.excludedChains, settings.onlyGrocery],
+    () => excludedIndexes(city, st.excludedEiks, settings.onlyGrocery),
+    [city, st.excludedEiks, settings.onlyGrocery],
   );
 
   const result = useMemo(() => {
@@ -43,8 +43,8 @@ export default function ResultScreen() {
   // (дешевле в разы — почти всегда ошибка разбора брошюры или другая фасовка)
   const today = todayIso();
   const visibleBro = useMemo(
-    () => visibleChains(st.brochures, st.baseCity, settings.excludedChains),
-    [st.brochures, st.baseCity, settings.excludedChains],
+    () => visibleChains(st.brochures, st.baseCity, st.excludedEiks),
+    [st.brochures, st.baseCity, st.excludedEiks],
   );
   const broHints = useMemo(() => {
     const m = new Map<number, BrochureOffer>();

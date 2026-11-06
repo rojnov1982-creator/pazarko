@@ -49,3 +49,11 @@ test("лучшее предложение: только действующее, 
   assert.equal(offerStatus(bro.offers[2], "2026-11-06"), "soon");
   assert.equal(offerStatus(bro.offers[0], "2026-11-09"), "expired");
 });
+
+import { isMetro } from "../src/lib/prices";
+test("Metro распознаётся на кириллице и латинице, другие сети — нет", () => {
+  assert.ok(isMetro({ name: "Метро България" }));
+  assert.ok(isMetro({ name: "METRO Cash & Carry" }));
+  assert.ok(!isMetro({ name: "Лидл България" }));
+  assert.ok(!isMetro({ name: "T Market" }));
+});

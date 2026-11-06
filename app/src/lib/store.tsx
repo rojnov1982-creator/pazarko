@@ -5,6 +5,7 @@ import { buildAreaCity, storesInArea } from "./area";
 import { loadBrochures, loadCity, loadIndex, loadProducts, loadStoreFile } from "./data";
 import { deviceLang, Lang, makeT, T, TKey } from "./i18n";
 import { canUse, Feature } from "./premium";
+import { isMetro } from "./prices";
 import type { Area, BasketItem, BrochureFile, CityFile, IndexFile, Product, ProductsFile, StoreFile } from "./types";
 
 export interface Settings {
@@ -22,6 +23,8 @@ export interface Settings {
   /** район покупок по городам (ЕКАТТЕ → район) */
   areas: Record<string, Area>;
   lang: Lang;
+  /** учитывать Metro (нужна клиентская карта); по умолчанию нет */
+  includeMetro: boolean;
   /** согласие на анонимную статистику: null — ещё не спрашивали */
   analytics: boolean | null;
   /** «Лесен режим»: крупнее и меньше кнопок; null — ещё не выбирали (спрашиваем при первом запуске) */
@@ -41,10 +44,11 @@ const DEFAULT_SETTINGS: Settings = {
   lang: "bg",
   analytics: null,
   easy: null,
+  includeMetro: false,
 };
 
 /** настройки, изменения которых пишем в статистику */
-const TRACKED_SETTINGS = ["maxStores", "usePromo", "extraStoreCost", "onlyGrocery", "showDeals", "hideMedicines", "lang", "easy"] as const;
+const TRACKED_SETTINGS = ["maxStores", "usePromo", "extraStoreCost", "onlyGrocery", "showDeals", "hideMedicines", "lang", "easy", "includeMetro"] as const;
 
 export const PRESETS: { id: string; title: TKey; emoji: string; items: BasketItem[] }[] = [
   {
@@ -98,6 +102,8 @@ interface Ctx {
   ekatte: string | null;
   basket: BasketItem[];
   settings: Settings;
+  /** ЕИК исключённых сетей: выбранные в настройках + Metro, если он не включён */
+  excludedEiks: string[];
   selectCity: (ekatte: string) => void;
   addItem: (productId: number) => void;
   setQty: (productId: number, qty: number) => void;
@@ -223,6 +229,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setCommonProps({ lang: settings.lang, city: ekatte ?? undefined, city_name: cityName, prices_date: index?.date });
   }, [settings.lang, ekatte, cityName, index?.date]);
 
+  const excludedEiks = useMemo(() => {
+    if (settings.includeMetro || !city) return settings.excludedChains;
+    const metro = city.chains.filter((c) => isMetro(c)).map((c) => c.eik);
+    return [...new Set([...settings.excludedChains, ...metro])];
+  }, [settings.includeMetro, settings.excludedChains, city]);
+
   const productById = useMemo(() => new Map((products?.products ?? []).map((p) => [p.id, p])), [products]);
   const t = useMemo(() => makeT(settings.lang), [settings.lang]);
   const qtyStep = useCallback((id: number) => (productById.get(id)?.byWeight ? 0.5 : 1), [productById]);
@@ -251,6 +263,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     ekatte,
     basket,
     settings,
+    excludedEiks,
     selectCity: (e) => {
       setEkatte(e);
       track("city_selected", { city: e, city_name: index?.cities.find((c) => c.ekatte === e)?.name });

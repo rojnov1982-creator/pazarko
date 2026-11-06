@@ -14,8 +14,8 @@ export default function DealsScreen() {
   const st = useStore();
   const { city, t, lang, settings } = st;
   const excluded = useMemo(
-    () => excludedIndexes(city, settings.excludedChains, settings.onlyGrocery),
-    [city, settings.excludedChains, settings.onlyGrocery],
+    () => excludedIndexes(city, st.excludedEiks, settings.onlyGrocery),
+    [city, st.excludedEiks, settings.onlyGrocery],
   );
   const deals = (city?.deals ?? []).filter((d) => !excluded.has(d[1]));
   const cityName = city ? (lang === "en" && city.nameEn ? city.nameEn : city.name.replace(/^(гр|с)\. /, "")) : "";

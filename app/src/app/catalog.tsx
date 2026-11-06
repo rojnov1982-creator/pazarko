@@ -16,8 +16,8 @@ export default function CatalogScreen() {
   const s = useS();
   const kf = useK();
   const excluded = useMemo(
-    () => excludedIndexes(st.city, st.settings.excludedChains, st.settings.onlyGrocery),
-    [st.city, st.settings.excludedChains, st.settings.onlyGrocery],
+    () => excludedIndexes(st.city, st.excludedEiks, st.settings.onlyGrocery),
+    [st.city, st.excludedEiks, st.settings.onlyGrocery],
   );
 
   const cats = (st.products?.categories ?? []).filter((c) => !(st.settings.hideMedicines && c.id === 14));

@@ -28,7 +28,7 @@ pazarko/
 │   │                    result (Спестяване), settings (Настройки), _layout
 │   ├── src/lib/         optimize.ts (алгоритм), data.ts, prices.ts, area.ts, store.tsx, i18n.ts, premium.ts, types.ts, analytics.ts
 │   ├── src/AreaPicker.tsx, Paywall.tsx, ui.tsx
-│   ├── tests/optimize.test.ts, brochures.test.ts   (11 тестов, `npm test`)
+│   ├── tests/optimize.test.ts, brochures.test.ts   (12 тестов, `npm test`)
 │   ├── app.json, eas.json, AGENTS.md (правила работы с Expo для ИИ)
 ├── data-pipeline/       Node: kolkostruva.bg → компактные JSON
 │   ├── ingest.mjs       скачивание и обработка дня
@@ -132,6 +132,11 @@ Supabase Storage (43 дня с 24.09, подтверждено в production). �
 **Варианты 2 и 3 (с 06.11.2026):** `optimizeBasket` хранит 3 лучших плана с разным набором реально использованных сетей
 (`result.alternatives`, до 2 штук, по возрастанию цены, в пределах лимита магазинов). В «Спестяване» (оба режима) —
 «Други варианти»: сумма, магазины, «с X € по-скъпо», список раскрывается по нажатию (событие `option_opened`).
+
+**Metro по умолчанию не участвует (с 06.11.2026):** это магазин для фирм с клиентской картой. `settings.includeMetro`
+(по умолчанию `false`) → `excludedEiks` в store (исключённые в настройках + сети, где `isMetro()` по названию МЕТРО/METRO);
+все экраны и брошюры берут `st.excludedEiks`. Переключатель «Metro (нужна е карта)» в Настройках → Изчисление; строка
+Metro в «Вериги в града» управляет тем же флагом.
 
 **Языки:** `src/lib/i18n.ts`, bg/en по языку телефона, переключатель в настройках; названия групп переведены, названия
 товаров сетей как в данных КЗП.

@@ -21,8 +21,8 @@ export default function BasketScreen() {
   const [brandFor, setBrandFor] = useState<number | null>(null);
   const [areaOpen, setAreaOpen] = useState(false);
   const excluded = useMemo(
-    () => excludedIndexes(st.city, st.settings.excludedChains, st.settings.onlyGrocery),
-    [st.city, st.settings.excludedChains, st.settings.onlyGrocery],
+    () => excludedIndexes(st.city, st.excludedEiks, st.settings.onlyGrocery),
+    [st.city, st.excludedEiks, st.settings.onlyGrocery],
   );
   const s = useS();
   const kf = useK();

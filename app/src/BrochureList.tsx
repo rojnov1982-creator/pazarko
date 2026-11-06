@@ -19,7 +19,7 @@ export function BrochureList({ header }: { header: React.ReactElement }) {
   const [food, setFood] = useState(true);
 
   // сети, которые есть в городе и не исключены в настройках
-  const visible = useMemo(() => visibleChains(bro, st.baseCity, settings.excludedChains), [bro, st.baseCity, settings.excludedChains]);
+  const visible = useMemo(() => visibleChains(bro, st.baseCity, st.excludedEiks), [bro, st.baseCity, st.excludedEiks]);
   const active = useMemo(() => (bro?.offers ?? []).filter((o) => visible[o.c] && offerStatus(o, today) !== "expired"), [bro, visible, today]);
   const counts = useMemo(() => {
     const m = new Map<number, number>();
