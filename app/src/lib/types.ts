@@ -210,3 +210,36 @@ export interface BrochureFile {
   types: string[];
   offers: BrochureOffer[];
 }
+
+/** Предложение из истории брошюр (одна неделя одной сети); ch — название сети брошюры */
+export interface BrochureHistoryItem {
+  ch: string;
+  n: string;
+  b?: string;
+  g?: number;
+  a?: number;
+  /** акция: с / до */
+  f: string;
+  t: string;
+  p?: number;
+  r?: number;
+  u?: string;
+  k?: 1;
+  /** условная механика (multibuy, tiered…) и текст условия — как в текущих брошюрах */
+  m?: string;
+  w?: string;
+}
+
+/** Файл месяца: history/<ГГГГ-ММ>.json */
+export interface BrochureHistoryMonth {
+  v: number;
+  month: string;
+  chains: string[];
+  items: (Omit<BrochureHistoryItem, "ch"> & { c: number })[];
+}
+
+/** История, загруженная в приложение: последние месяцы вместе, новые первыми */
+export interface BrochureHistory {
+  months: string[];
+  items: BrochureHistoryItem[];
+}

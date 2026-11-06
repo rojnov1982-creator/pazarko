@@ -4,7 +4,7 @@
 // - Если любимый продукт «в списке», он стоит в корзине как обычный товар: группа КЗП + марка (если удалось
 //   определить) — цена по КЗП, а если есть подходящая акция в брошюре, план возьмёт её. Без группы — строка без цены.
 
-import type { BrochureFile, BrochureOffer, CityFile, PriceTuple } from "./types";
+import type { BrochureFile, BrochureHistory, BrochureHistoryItem, BrochureOffer, CityFile, PriceTuple } from "./types";
 
 export interface Favorite {
   id: string;
@@ -153,4 +153,109 @@ export function favPart(
   }
   if (regOk) return { price: regular, regular, isPromo: false, product: regName, pack: regPack || undefined };
   return null;
+}
+
+/**
+ * Продукт в истории брошюр (сеть + название + марка) — по всем загруженным неделям:
+ * last — последняя УЖЕ ЗАКОНЧИВШАЯСЯ акция, now — действующая сегодня, next — ближайшая будущая, weeks — сколько недель.
+ * Будущая акция не затирает прошедшую: в истории хранится каждая неделя.
+ */
+export interface HistoryProduct {
+  key: string;
+  ch: string;
+  n: string;
+  b?: string;
+  g?: number;
+  a?: number;
+  last?: BrochureHistoryItem;
+  now?: BrochureHistoryItem;
+  next?: BrochureHistoryItem;
+  weeks: number;
+}
+
+export function historyProducts(history: BrochureHistory | null, today: string): HistoryProduct[] {
+  if (!history) return [];
+  const map = new Map<string, HistoryProduct & { fs: Set<string> }>();
+  for (const h of history.items) {
+    const key = `${h.ch}|${fold(h.n)}|${fold(h.b ?? "")}`;
+    let p = map.get(key);
+    if (!p) {
+      p = { key, ch: h.ch, n: h.n, b: h.b, g: h.g, a: h.a, weeks: 0, fs: new Set() };
+      map.set(key, p);
+    }
+    p.fs.add(h.f);
+    if (h.t < today) {
+      if (!p.last || h.t > p.last.t) p.last = h;
+    } else if (h.f > today) {
+      if (!p.next || h.f < p.next.f) p.next = h;
+    } else if (!p.now || (h.p ?? 0) < (p.now.p ?? 0)) p.now = h;
+  }
+  const latest = (p: HistoryProduct) => (p.now ?? p.last ?? p.next)!.f;
+  return [...map.values()]
+    .map(({ fs, ...p }) => ({ ...p, weeks: fs.size }))
+    .sort((a, b) => (latest(b) < latest(a) ? -1 : latest(b) > latest(a) ? 1 : 0));
+}
+
+/** Продукты истории со всеми словами; сначала фильтр (сеть, раздел, «только прошедшие»), потом лимит */
+export function historyMatches(
+  products: HistoryProduct[],
+  words: string[],
+  filter: (p: HistoryProduct) => boolean = () => true,
+  limit = 20,
+): HistoryProduct[] {
+  if (!words.length) return [];
+  const out: HistoryProduct[] = [];
+  for (const p of products) {
+    if (!matchesWords(words, `${p.n} ${p.b ?? ""}`) || !filter(p)) continue;
+    out.push(p);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+/** Последняя закончившаяся акция любимого продукта и ближайшая будущая (по всем подходящим продуктам) */
+export function favHistory(f: Favorite, products: HistoryProduct[]) {
+  let last: { p: HistoryProduct; h: BrochureHistoryItem } | undefined;
+  let next: { p: HistoryProduct; h: BrochureHistoryItem } | undefined;
+  for (const p of historyMatches(products, f.words, () => true, 1000)) {
+    if (p.last && (!last || p.last.t > last.h.t)) last = { p, h: p.last };
+    if (p.next && (!next || p.next.f < next.h.f)) next = { p, h: p.next };
+  }
+  return { last, next };
+}
+
+/** Условие акции для показа: текст из брошюры, иначе — по механике */
+export function conditionKey(h: { m?: string; w?: string }): string | undefined {
+  if (h.w) return undefined;
+  if (!h.m) return undefined;
+  if (h.m.includes("multibuy")) return "mechMultibuy";
+  if (h.m.includes("tiered")) return "mechTiered";
+  if (h.m.includes("code_threshold")) return "mechCode";
+  if (h.m.includes("promo_pack")) return "mechPromoPack";
+  if (h.m.includes("pct_no_price")) return "mechPctNoPrice";
+  return undefined;
+}
+
+/**
+ * Название для «Любими» из продукта брошюры: вид продукта (первое слово), собственные имена (с заглавной)
+ * и марка (первое слово), без граммовки и описаний —
+ * «Луканка Добруджанска; Чардака ОРЕХИТЕ ГАСТРО насипна от щандова витрина» → «Луканка Добруджанска Чардака Орехите».
+ */
+export function favNameFrom(name: string, brand?: string): string {
+  const title = (w: string) => (w.length > 1 && w === w.toUpperCase() ? w[0] + w.slice(1).toLowerCase() : w);
+  const brandWords = new Set(fold(brand ?? "").split(" ").filter(Boolean));
+  const firstBrand = fold(brand ?? "").split(" ")[0] ?? "";
+  const words = name
+    .replace(/[;,()]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w && !/\d/.test(w) && !/^(г|гр|кг|мл|л|бр|x|х|%)$/i.test(w));
+  const out: string[] = [];
+  words.forEach((w, i) => {
+    const f = fold(w);
+    if (brandWords.has(f) && f !== firstBrand) return; // от марки — только первое слово
+    const proper = /^\p{Lu}/u.test(w);
+    if (i === 0 || proper) out.push(title(w));
+  });
+  if (firstBrand && !out.some((w) => fold(w) === firstBrand)) out.push(title((brand ?? "").split(/\s+/)[0]));
+  return [...new Set(out)].join(" ");
 }

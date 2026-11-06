@@ -21,12 +21,12 @@ import {
 import { productName, sizeLabel, splitName } from "./lib/i18n";
 import { isPerKgOffer, itemKey, pinFromBrochure } from "./lib/pins";
 import { weeklyPromoBasket } from "./lib/promoBasket";
-import { favoriteOffers, offerMatches } from "./lib/favorites";
+import { conditionKey, favNameFrom, favoriteOffers, favWords, historyMatches, matchesWords, offerMatches, type HistoryProduct } from "./lib/favorites";
 import { router } from "expo-router";
 import { useStore } from "./lib/store";
 import type { BrochureOffer } from "./lib/types";
 import type { TKey } from "./lib/i18n";
-import { chainColor, Icon, OfferCard } from "./components";
+import { chainColor, historyLine, Icon, OfferCard } from "./components";
 import {
   C,
   CAT_EMOJI,
@@ -164,6 +164,19 @@ export function BrochureList({ header }: { header: React.ReactElement }) {
     ];
   }, [active, chain, inCat, q, bro, today]);
 
+  // поиск по прошлым неделям: продукты, у которых есть закончившаяся акция и нет действующей.
+  // Сначала все фильтры (сеть, раздел, дата), потом лимит — иначе нужная запись отсекалась бы раньше фильтра
+  const past = useMemo(() => {
+    if (q.trim().length < 3) return [];
+    const chainName = chain != null ? bro?.chains[chain]?.name : undefined;
+    return historyMatches(
+      st.historyProducts,
+      favWords(q),
+      (p) => !!p.last && !p.now && (!chainName || p.ch === chainName) && inCat({ a: p.a } as BrochureOffer),
+      30,
+    );
+  }, [q, st.historyProducts, chain, bro, inCat]);
+
   const filters = (
     <View style={{ gap: 8, marginBottom: 4 }}>
       {header}
@@ -255,15 +268,69 @@ export function BrochureList({ header }: { header: React.ReactElement }) {
         </Text>
       }
       ListFooterComponent={
-        bro && list.length ? (
-          <Text style={[s.muted, { fontSize: 12, marginTop: 12 }]}>
-            {t("brochuresNote")}
-          </Text>
-        ) : undefined
+        <View style={{ gap: 10, marginTop: 12 }}>
+          {past.length > 0 && <PastOffers items={past} />}
+          {bro && list.length ? (
+            <Text style={[s.muted, { fontSize: 12 }]}>{t("brochuresNote")}</Text>
+          ) : null}
+        </View>
       }
       ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
       renderItem={({ item }) => <OfferRow o={item} today={today} />}
     />
+  );
+}
+
+/** Прошедшие акции из истории брошюр: где, почём и на каких условиях было; «♡ Следи» — в любимые */
+function PastOffers({ items }: { items: HistoryProduct[] }) {
+  const st = useStore();
+  const { t, lang } = st;
+  const k = useK();
+  return (
+    <View style={{ gap: 8 }}>
+      <Text style={{ fontWeight: "900", fontSize: 18 * k, color: C.ink }} accessibilityRole="header">
+        🕘 {t("pastTitle", { n: items.length })}
+      </Text>
+      <Text style={[s.muted, { fontSize: 14 * k }]}>{t("pastNote")}</Text>
+      {items.map((p) => {
+        const followed = st.favorites.some((f) => matchesWords(f.words, `${p.n} ${p.b ?? ""}`));
+        const g = p.g ? st.productById.get(p.g) : undefined;
+        return (
+          <View
+            key={p.key}
+            style={{ backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 12, gap: 6 }}
+          >
+            <View style={[s.row, { gap: 10, alignItems: "flex-start" }]}>
+              <Text style={{ fontSize: 26 * k }}>{g ? productEmoji(g) : (CAT_EMOJI[p.a ?? 0] ?? "🏷️")}</Text>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={{ fontWeight: "700", fontSize: 15.5 * k, color: C.ink }}>{p.n}</Text>
+                <Text style={[s.muted, { fontSize: 13.5 * k }]}>{historyLine(p.last!, t, lang, { weeks: p.weeks })}</Text>
+                {!!p.next && (
+                  <Text style={{ color: C.promo, fontWeight: "700", fontSize: 13.5 * k }}>
+                    {t("histNext", { what: historyLine(p.next, t, lang, { chain: false }) })}
+                  </Text>
+                )}
+              </View>
+            </View>
+            <Pressable
+              onPress={() => {
+                st.addFavorite(favNameFrom(p.n, p.b));
+                track("favorite_from_history", { product: p.n });
+              }}
+              disabled={followed}
+              accessibilityRole="button"
+              accessibilityLabel={`${followed ? t("favFollowing") : t("favFollow")}: ${p.n}`}
+              style={[s.row, { gap: 6, alignSelf: "flex-start", minHeight: 36 }]}
+            >
+              <Icon name={followed ? "heart" : "heart-outline"} size={20 * k} color={C.promo} />
+              <Text style={{ color: C.promo, fontWeight: "800", fontSize: 15 * k }}>
+                {followed ? t("favFollowing") : t("favFollow")}
+              </Text>
+            </Pressable>
+          </View>
+        );
+      })}
+    </View>
   );
 }
 
@@ -696,7 +763,7 @@ function OfferRow({ o, today }: { o: BrochureOffer; today: string }) {
           : t("validTo", { date: shortDate(o.t) })
       }
       card={!!o.k}
-      condition={o.w}
+      condition={o.w ?? (conditionKey(o) ? t(conditionKey(o) as TKey) : undefined)}
       check={check}
       onFollow={() => {
         const f = st.addFavorite(favNameFromOffer(o));

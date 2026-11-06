@@ -5,10 +5,11 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { FlatList, Modal, Pressable, Text, View } from "react-native";
 import { shortDate } from "./lib/brochures";
-import { brandLabel, productName, sizeLabel, splitName } from "./lib/i18n";
+import { conditionKey } from "./lib/favorites";
+import { brandLabel, productName, sizeLabel, splitName, type Lang, type T, type TKey } from "./lib/i18n";
 import type { PlanLine } from "./lib/optimize";
 import { useStore } from "./lib/store";
-import type { BasketItem, PinnedOffer } from "./lib/types";
+import type { BasketItem, BrochureHistoryItem, PinnedOffer } from "./lib/types";
 import { C, money, productEmoji, qtyLabel, Stepper, useK, useS } from "./ui";
 
 export type IconName = React.ComponentProps<typeof Ionicons>["name"];
@@ -980,4 +981,28 @@ export function BackLink({ onPress }: { onPress: () => void }) {
       </Text>
     </Pressable>
   );
+}
+
+/**
+ * Строка предложения из истории брошюр: «Fantastico · 3,00 € (6,00 €) · 20.10–26.10 · с карта · при покупка на няколко броя».
+ * Условие (механика, текст) показываем всегда — цена без условия вводила бы в заблуждение.
+ */
+export function historyLine(
+  h: BrochureHistoryItem,
+  t: T,
+  lang: Lang,
+  opts: { chain?: boolean; weeks?: number } = {},
+): string {
+  const ck = conditionKey(h);
+  return [
+    opts.chain === false ? "" : h.ch,
+    h.p != null ? money(h.p, lang) : "",
+    h.r ? `(${money(h.r, lang)})` : "",
+    `${shortDate(h.f)}–${shortDate(h.t)}`,
+    h.k ? t("withCard") : "",
+    h.w ?? (ck ? t(ck as TKey) : ""),
+    opts.weeks && opts.weeks > 1 ? t("weeksN", { n: opts.weeks }) : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }

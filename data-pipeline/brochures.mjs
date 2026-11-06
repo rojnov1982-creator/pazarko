@@ -3,11 +3,12 @@
 // Вход: data-pipeline/brochures/*.csv — разборы брошюр в формате v1 (30 колонок, как в Media Radar / навык brochure-offers).
 // Только открытые источники (сайты сетей, агрегаторы брошюр): репозиторий публичный.
 //
-// Выход: <out>/brochures.json — действующие предложения и те, что начнутся в ближайшие UPCOMING_DAYS дней.
+// Выход: <out>/brochures.json — действующие предложения и те, что начнутся в ближайшие UPCOMING_DAYS дней;
+//        <out>/history/<ГГГГ-ММ>.json — все предложения всех разобранных недель по месяцам, history/index.json — месяцы.
 // Для предложений с понятной фасовкой считается цена за эталонную фасовку группы КЗП (rp) —
 // её приложение сравнивает с ценой в плане корзины.
 //
-//   node brochures.mjs --out ../site [--today 2026-11-06]
+//   node brochures.mjs --out ../site [--today 2026-11-06] [--in <папка с CSV>]
 
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -55,7 +56,7 @@ const num = (s) => {
 };
 const r2 = (v) => (v == null ? undefined : Math.round(v * 100) / 100);
 
-const dir = path.join(here, "brochures");
+const dir = path.resolve(args.in && args.in !== true ? args.in : path.join(here, "brochures"));
 const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith(".csv")).sort() : [];
 
 const chainIdx = new Map();
@@ -64,6 +65,49 @@ const idx = (m, v) => (m.has(v) ? m.get(v) : (m.set(v, m.size), m.size - 1));
 const offers = [];
 const seen = new Set();
 const stats = { files: files.length, rows: 0, expired: 0, future: 0, noChain: 0, dup: 0, comparable: 0 };
+
+// История брошюр по месяцам: каждое предложение каждой недели (не только последнее — иначе будущая акция затирала бы
+// прошедшую), с ценой, обычной ценой и УСЛОВИЯМИ (механика, текст условия, «с карта»). Месяц — по дате начала акции.
+// Приложение само решает, что «последно в акция» (уже закончилась), что «сега», что «скоро».
+const historyByMonth = new Map(); // "2026-11" → Map(ключ → запись)
+const cleanName = (s) =>
+  (s ?? "")
+    .split("•")[0]
+    .replace(/(^|\s)(МЕ|ME)\s*=\s*/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+function remember(r, chain, from, to) {
+  const name = cleanName(r.product);
+  if (!name) return;
+  const brand = (r.brand ?? "").trim() || undefined;
+  const price = num(r.effective_eur) ?? num(r.price_eur);
+  const regular = num(r.regular_eur);
+  const mech = (r.mechanic ?? "").trim();
+  const conditional = /multibuy|tiered|code_threshold|promo_pack|pct_no_price/.test(mech);
+  const key = [chain, name.toLowerCase(), (brand ?? "").toLowerCase(), from, to, price].join("|");
+  const month = from.slice(0, 7);
+  const m = historyByMonth.get(month) ?? new Map();
+  historyByMonth.set(month, m);
+  if (m.has(key)) return;
+  const qty = num(r.total_qty);
+  const unit = (r.unit ?? "").trim();
+  const ppu = !(r.check ?? "").trim() && price && qty && unit ? r2(price / qty) : undefined;
+  m.set(key, {
+    chain,
+    n: name,
+    b: brand,
+    g: num(String(r.kzp_group ?? "").split("/")[0]) || undefined,
+    a: num(r.cat) ?? undefined,
+    f: from,
+    t: to,
+    p: r2(price),
+    r: regular && price && regular > price ? r2(regular) : undefined,
+    u: ppu ? `${ppu}/${unit}` : undefined,
+    k: mech.includes("card_app") ? 1 : undefined,
+    m: conditional ? mech : undefined,
+    w: (r.condition ?? "").trim() || undefined,
+  });
+}
 
 for (const f of files) {
   const rows = parse(fs.readFileSync(path.join(dir, f), "utf8"), { columns: true, bom: true, skip_empty_lines: true, relax_column_count: true });
@@ -77,6 +121,7 @@ for (const f of files) {
     const from = r.valid_from || r.brochure_from;
     const to = r.valid_to || r.brochure_to;
     if (!from || !to) continue;
+    remember(r, chain, from, to); // история: все недели, включая прошедшие
     if (to < today) {
       stats.expired++;
       continue;
@@ -164,8 +209,26 @@ const result = {
 };
 fs.mkdirSync(outDir, { recursive: true });
 fs.writeFileSync(path.join(outDir, "brochures.json"), JSON.stringify(result));
+
+// история: history/<ГГГГ-ММ>.json + history/index.json (список месяцев); сети — по названию в каждом файле
+const histDir = path.join(outDir, "history");
+fs.mkdirSync(histDir, { recursive: true });
+const months = [...historyByMonth.keys()].sort();
+let histTotal = 0;
+for (const month of months) {
+  const chains = [];
+  const ci = (name) => (chains.includes(name) ? chains.indexOf(name) : chains.push(name) - 1);
+  const items = [...historyByMonth.get(month).values()]
+    .sort((x, y) => (y.f < x.f ? -1 : y.f > x.f ? 1 : 0))
+    .map(({ chain, ...h }) => ({ ...h, c: ci(chain) }));
+  histTotal += items.length;
+  fs.writeFileSync(path.join(histDir, `${month}.json`), JSON.stringify({ v: 2, month, chains, items }));
+}
+fs.writeFileSync(path.join(histDir, "index.json"), JSON.stringify({ v: 2, generatedAt: result.generatedAt, months }));
+
 console.log(
   `Брошюры: файлов ${stats.files}, строк ${stats.rows} → предложений ${offers.length} ` +
     `(сравнимых с КЗП ${stats.comparable}; истекли ${stats.expired}, позже ${UPCOMING_DAYS} дн. ${stats.future}, ` +
-    `дубли ${stats.dup}, неизвестная сеть ${stats.noChain}) → ${outDir}/brochures.json`,
+    `дубли ${stats.dup}, неизвестная сеть ${stats.noChain}) → ${outDir}/brochures.json; ` +
+    `история: ${histTotal} предложений за ${months.length} мес. → history/`,
 );

@@ -7,6 +7,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import type {
   BrochureFile,
+  BrochureHistory,
+  BrochureHistoryMonth,
   CityFile,
   IndexFile,
   ProductsFile,
@@ -137,4 +139,28 @@ export async function loadBrochures(): Promise<BrochureFile | null> {
     FILE_TTL,
     dataVersion,
   ).catch(() => null);
+}
+
+/** Сколько последних месяцев истории брошюр загружать */
+const HISTORY_MONTHS = 6;
+
+/**
+ * История брошюр: history/index.json → последние HISTORY_MONTHS месяцев (history/<ГГГГ-ММ>.json), вместе,
+ * новые первыми. Для поиска прошедших акций и подсказок в «Любими». В демо-режиме — нет.
+ */
+export async function loadBrochureHistory(): Promise<BrochureHistory | null> {
+  if (IS_DEMO) return null;
+  try {
+    const idx = await fetchCached<{ months: string[] }>("history/index.json", FILE_TTL, dataVersion);
+    const months = idx.months.slice(-HISTORY_MONTHS);
+    const files = await Promise.all(
+      months.map((m) => fetchCached<BrochureHistoryMonth>(`history/${m}.json`, FILE_TTL, dataVersion).catch(() => null)),
+    );
+    const items = files
+      .flatMap((f) => (f ? f.items.map(({ c, ...h }) => ({ ...h, ch: f.chains[c] ?? "" })) : []))
+      .sort((a, b) => (b.f < a.f ? -1 : b.f > a.f ? 1 : 0));
+    return { months, items };
+  } catch {
+    return null;
+  }
 }
