@@ -9,6 +9,7 @@
 //
 //   node brochures.mjs --out ../site [--today 2026-11-06]
 
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -127,6 +128,8 @@ for (const f of files) {
     const ppu = !suspicious && price && qty && unit ? r2(price / qty) : undefined;
 
     offers.push({
+      // устойчивый идентификатор: приложение хранит его в корзине для закреплённой акции
+      i: createHash("sha1").update(key).digest("hex").slice(0, 12),
       c: idx(chainIdx, chain),
       f: from,
       t: to,

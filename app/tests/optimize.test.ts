@@ -2,10 +2,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { optimizeBasket } from "../src/lib/optimize";
-import type { CityFile, BasketItem } from "../src/lib/types";
+import { optimizeBasket, purchase, type ItemMeta } from "../src/lib/optimize";
+import type { CityFile, BasketItem, ProductsFile } from "../src/lib/types";
 
 const city: CityFile = JSON.parse(fs.readFileSync(new URL("../assets/demo-data/city/68134.json", import.meta.url), "utf8"));
+const products: ProductsFile = JSON.parse(fs.readFileSync(new URL("../assets/demo-data/products.json", import.meta.url), "utf8"));
+const metaMap = new Map(products.products.map((p) => [p.id, { byWeight: p.byWeight, ref: p.ref, std: p.std } as ItemMeta]));
+const meta = (id: number) => metaMap.get(id);
 
 let seed = 7;
 const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
@@ -20,7 +23,11 @@ function randomBasket(n: number): BasketItem[] {
 /** Эталон: тупой перебор всех назначений «товар → сеть» с лимитом магазинов */
 function bruteForce(basket: BasketItem[], k: number, usePromo: boolean) {
   const opts = basket.map((b) =>
-    city.items[b.productId].map((t) => ({ c: t[0], p: usePromo && t[4] ? t[3] : t[1] })),
+    city.items[b.productId].map((t) => {
+      const promo = usePromo && t[4] && t[3] < t[1];
+      const offer = { chain: t[0], price: promo ? t[3] : t[1], regular: t[1], isPromo: !!promo, product: "", store: "", packPrice: (promo ? t[8] : t[7]) || undefined };
+      return { c: t[0], p: purchase(offer, b.qty, meta(b.productId)).cost / b.qty };
+    }),
   );
   let best = Infinity;
   const rec = (i: number, used: Set<number>, sum: number) => {
@@ -43,7 +50,7 @@ test("план с лимитом магазинов совпадает с пол
     const basket = randomBasket(3 + Math.floor(rnd() * 6));
     for (const k of [1, 2, 3]) {
       for (const usePromo of [true, false]) {
-        const r = optimizeBasket(city, basket, { maxStores: k, usePromo, extraStoreCost: 0 });
+        const r = optimizeBasket(city, basket, { maxStores: k, usePromo, extraStoreCost: 0, meta });
         assert.equal(r.plan.missing.length, 0);
         assert.ok(r.plan.stores.length <= k, "не больше K магазинов");
         assert.equal(r.plan.total, bruteForce(basket, k, usePromo), `basket ${JSON.stringify(basket)} k=${k}`);
@@ -72,7 +79,7 @@ test("штраф за магазин уменьшает число магази�
 test("исключённые сети не попадают в план, отсутствующие товары помечаются", () => {
   const basket: BasketItem[] = [{ productId: 8, qty: 1 }, { productId: 9999, qty: 1 }];
   const r = optimizeBasket(city, basket, { maxStores: 2, usePromo: true, extraStoreCost: 0, excludedChains: [1, 2] });
-  assert.deepEqual(r.plan.missing, [9999]);
+  assert.deepEqual(r.plan.missing, ["g:9999"]);
   for (const s of r.plan.stores) assert.ok(![1, 2].includes(s.chain));
 });
 
@@ -92,7 +99,7 @@ test("выбранная марка: план берёт только товар
 
 test("марки, которой нет в городе, — товар не найден", () => {
   const r = optimizeBasket(city, [{ productId: 6, qty: 1, brand: "НесуществующаяМарка" }], { maxStores: 2, usePromo: true, extraStoreCost: 0 });
-  assert.deepEqual(r.plan.missing, [6]);
+  assert.deepEqual(r.plan.missing, ["g:6"]);
 });
 
 test("район: план считается только по выбранным магазинам", async () => {

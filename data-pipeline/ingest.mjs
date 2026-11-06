@@ -15,7 +15,7 @@ import path from "node:path";
 import { unzipSync } from "fflate";
 import { parseChainCsv } from "./lib/parse.mjs";
 import { aggregate } from "./lib/aggregate.mjs";
-import { normalizeSizes, RANGE_GROUPS } from "./lib/sizes.mjs";
+import { FIXED_GROUPS, normalizeSizes, RANGE_GROUPS } from "./lib/sizes.mjs";
 import { BRANDS } from "./lib/brands.mjs";
 
 const here = path.dirname(new URL(import.meta.url).pathname);
@@ -132,6 +132,8 @@ const products = JSON.parse(fs.readFileSync(path.join(here, "ref/products.json")
 for (const p of products.products) {
   const g = RANGE_GROUPS[p.id];
   if (g) p.ref = { unit: g.unit, size: g.ref }; // цена в данных — за эту фасовку
+  const fx = FIXED_GROUPS[p.id];
+  if (fx) p.std = { unit: fx.unit, size: fx.ref }; // стандартная упаковка группы («1 л», «1 кг»)
   if (BRANDS[p.id]) p.hasBrands = true; // можно выбрать марку
 }
 fs.writeFileSync(path.join(outDir, "products.json"), JSON.stringify(products));

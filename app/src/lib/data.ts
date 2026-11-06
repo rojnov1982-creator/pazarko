@@ -29,6 +29,10 @@ const INDEX_TTL = 20 * 60 * 1000;
 const FILE_TTL = 24 * 3600 * 1000;
 let dataVersion = "";
 
+/** Файлы, которые не удалось обновить и которые показаны из сохранённой копии */
+const stalePaths = new Set<string>();
+export const isStale = (...paths: string[]) => paths.some((p) => stalePaths.has(p));
+
 async function fetchCached<T>(path: string, ttl: number, version = ""): Promise<T> {
   const key = `cache2:${path}@${version}`;
   try {
@@ -44,10 +48,23 @@ async function fetchCached<T>(path: string, ttl: number, version = ""): Promise<
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as T;
     AsyncStorage.setItem(key, JSON.stringify({ at: Date.now(), data })).catch(() => {});
+    stalePaths.delete(path);
     return data;
   } catch (e) {
+    // устаревший кэш лучше, чем ничего — но экран должен сказать, что данные не обновились
     const raw = await AsyncStorage.getItem(key).catch(() => null);
-    if (raw) return JSON.parse(raw).data as T; // устаревший кэш лучше, чем ничего
+    if (raw) {
+      stalePaths.add(path);
+      return JSON.parse(raw).data as T;
+    }
+    // любая сохранённая версия этого файла (другая версия данных)
+    const keys = await AsyncStorage.getAllKeys().catch(() => [] as readonly string[]);
+    const older = keys.filter((k) => k.startsWith(`cache2:${path}@`)).sort().pop();
+    const rawOld = older ? await AsyncStorage.getItem(older).catch(() => null) : null;
+    if (rawOld) {
+      stalePaths.add(path);
+      return JSON.parse(rawOld).data as T;
+    }
     throw e;
   }
 }

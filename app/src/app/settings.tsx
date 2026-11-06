@@ -1,4 +1,6 @@
+import { router } from "expo-router";
 import { Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { Icon } from "../components";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ANALYTICS_AVAILABLE, track } from "../lib/analytics";
 import { DATA_URL, IS_DEMO } from "../lib/data";
@@ -30,7 +32,19 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={s.screen} edges={["top"]}>
       <ScrollView contentContainerStyle={[s.pad, { paddingBottom: 32 }]}>
-        <Text style={s.title}>{t("tabSettings")}</Text>
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+          accessibilityRole="button"
+          accessibilityLabel={t("back")}
+          hitSlop={8}
+          style={[s.row, { gap: 4, alignSelf: "flex-start", paddingVertical: 6 }]}
+        >
+          <Icon name="chevron-back" size={24} color={C.green} />
+          <Text style={{ color: C.green, fontWeight: "700", fontSize: 17 }}>{t("back")}</Text>
+        </Pressable>
+        <Text style={s.title} accessibilityRole="header">
+          {t("tabSettings")}
+        </Text>
 
         <Card style={{ borderColor: C.green, borderWidth: easy ? 2 : 1 }}>
           <Toggle title={`👓 ${t("easyMode")}`} sub={t("easyModeSub")} value={easy} onChange={(v) => st.updateSettings({ easy: v })} />

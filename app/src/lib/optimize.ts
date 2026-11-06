@@ -9,8 +9,26 @@
 // ≤ 24 кандидатов это максимум ~12 тыс. вариантов — мгновенно на телефоне). Внутри
 // подмножества каждый товар берётся там, где он дешевле. Критерий: сначала меньше
 // ненайденных товаров, потом меньше сумма (+ штраф за магазины).
+//
+// Две цены (см. purchase()):
+// - цена для сравнения — за эталонную фасовку группы (400 г сирене, 1 л мляко), как в данных КЗП;
+// - стоимость покупки — сколько заплатишь на кассе: целое число упаковок × цена упаковки
+//   (нужно 400 г, есть только 1 кг за 7,50 € → покупка 7,50 €). План, сравнение сетей и экономия — по стоимости покупки.
+// Если размер упаковки не распознан, строка помечается approx («ориентировъчно»), размер не придумывается.
+//
+// Закреплённое предложение (BasketItem.pin) участвует только в своей сети и по своей цене (см. pins.ts).
 
+import { itemKey, pinStatus } from "./pins";
 import type { BasketItem, CityFile, PriceTuple } from "./types";
+
+/** Что нужно знать о группе товара, чтобы посчитать покупку */
+export interface ItemMeta {
+  byWeight: boolean;
+  /** группы с разными фасовками: цена в данных — за эту фасовку */
+  ref?: { unit: "kg" | "l" | "pcs"; size: number };
+  /** группы с одной стандартной фасовкой («1 л», «1 кг») */
+  std?: { unit: "kg" | "l" | "pcs"; size: number };
+}
 
 export interface OptimizeOptions {
   /** максимум разных сетей в плане; 0 = без ограничения */
@@ -21,24 +39,42 @@ export interface OptimizeOptions {
   extraStoreCost: number;
   /** сети, которые пользователь исключил (индексы) */
   excludedChains?: number[];
+  /** сведения о группах (вес / фасовка); без них цена × количество */
+  meta?: (productId: number) => ItemMeta | undefined;
+  /** сегодня (YYYY-MM-DD) — для сроков закреплённых акций */
+  today?: string;
 }
 
 export interface Offer {
   chain: number;
+  /** цена для сравнения: за эталонную фасовку группы (или за кг) */
   price: number;
   regular: number;
   isPromo: boolean;
   product: string;
   store: string;
-  /** реальная цена пачки на полке, если цена приведена к эталонной фасовке */
+  /** реальная цена упаковки на полке, если известна */
   packPrice?: number;
+  /** закреплённое пользователем предложение */
+  pinned?: boolean;
 }
 
 export interface PlanLine {
+  /** ключ позиции корзины (см. itemKey) */
+  key: string;
   productId: number;
+  /** количество в корзине: эталонные фасовки, кг или штуки */
   qty: number;
   offer: Offer;
+  /** сколько упаковок купить (для весовых — нет) */
+  packs?: number;
+  /** размер одной упаковки в единицах группы (кг / л / шт.), если известен */
+  packSize?: number;
+  packUnit?: "kg" | "l" | "pcs";
+  /** стоимость покупки, € */
   cost: number;
+  /** размер упаковки не распознан — стоимость ориентировочная */
+  approx?: boolean;
 }
 
 export interface StorePlan {
@@ -50,17 +86,19 @@ export interface StorePlan {
 export interface Plan {
   stores: StorePlan[];
   total: number;
-  /** товары, которых нет ни в одной выбранной сети */
-  missing: number[];
+  /** ключи позиций, которых нет ни в одной выбранной сети (или закреплённая акция недоступна) */
+  missing: string[];
+  /** есть строки с ориентировочной стоимостью */
+  approx: boolean;
 }
 
 export interface SingleStoreResult {
   chain: number;
   total: number;
-  missing: number[];
-  /** стоимость оптимального плана на тех же товарах, что есть в этой сети */
+  missing: string[];
+  /** стоимость оптимального плана на тех же позициях, что есть в этой сети */
   planOnSameItems: number;
-  /** сколько переплата при покупке только здесь (на сопоставимых товарах) */
+  /** сколько переплата при покупке только здесь (на сопоставимых позициях) */
   overpay: number;
   lines: PlanLine[];
 }
@@ -69,17 +107,35 @@ export interface OptimizeResult {
   plan: Plan;
   /** следующие по цене варианты с другим набором магазинов (до 2): «вариант 2», «вариант 3» */
   alternatives: Plan[];
-  /** абсолютный минимум (каждый товар в самой дешёвой сети, без лимита магазинов) */
+  /** абсолютный минимум (каждая позиция в самой дешёвой сети, без лимита магазинов) */
   ideal: Plan;
   singles: SingleStoreResult[];
   bestSingle: SingleStoreResult | null;
-  /** экономия плана против лучшей одной сети (на сопоставимых товарах) */
+  /** экономия плана против лучшей одной сети (на сопоставимых позициях) */
   savings: number;
   savingsPct: number;
   evaluated: number;
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
+/** до 20% меньше нужного — всё ещё одна упаковка (380 г вместо 400 г) */
+const PACK_SLACK = 0.2;
+
+/** Стоимость покупки позиции у этого предложения: упаковки × цена упаковки (или вес × цена за кг) */
+export function purchase(o: Offer, qty: number, m?: ItemMeta): Omit<PlanLine, "key" | "productId" | "qty" | "offer"> {
+  if (o.pinned) return { cost: qty * o.price, packs: m?.byWeight ? undefined : qty };
+  if (m?.byWeight) return { cost: qty * o.price };
+  const ref = m?.ref ?? m?.std;
+  if (ref) {
+    if (o.packPrice && o.packPrice > 0 && o.price > 0) {
+      const ratio = o.packPrice / o.price; // упаковка в эталонных фасовках
+      const packs = Math.max(1, Math.ceil(qty / ratio - PACK_SLACK + 1e-9));
+      return { cost: packs * o.packPrice, packs, packSize: Math.round(ratio * ref.size * 1000) / 1000, packUnit: ref.unit };
+    }
+    return { cost: qty * o.price, packs: Math.ceil(qty), approx: true }; // размер не распознан
+  }
+  return { cost: qty * o.price, packs: Math.ceil(qty) };
+}
 
 function toOffer(t: PriceTuple, usePromo: boolean): Offer {
   const [chain, regular, regName, eff, promo, effName, store, regPack, effPack] = t;
@@ -97,52 +153,76 @@ function toOffer(t: PriceTuple, usePromo: boolean): Offer {
   };
 }
 
-/** offers[i] — предложения по i-му товару корзины, индексированные по сети */
-function buildOffers(city: CityFile, basket: BasketItem[], opts: OptimizeOptions) {
+type Choice = { offer: Offer; line: ReturnType<typeof purchase> };
+
+/** choices[i] — варианты покупки i-й позиции, по сетям */
+function buildChoices(city: CityFile, basket: BasketItem[], opts: OptimizeOptions) {
   const excluded = new Set(opts.excludedChains ?? []);
+  const today = opts.today ?? "";
   return basket.map((b) => {
-    const m = new Map<number, Offer>();
+    const m = new Map<number, Choice>();
+    const meta = opts.meta?.(b.productId);
+    if (b.pin) {
+      const st = pinStatus(b.pin, today, city, excluded);
+      if (st.status !== "now") return m; // истекла / ещё не началась / сети нет — не подменяем
+      for (const c of st.chains) {
+        const offer: Offer = {
+          chain: c,
+          price: b.pin.price,
+          regular: b.pin.regular ?? b.pin.price,
+          isPromo: true,
+          product: b.pin.name,
+          store: "",
+          packPrice: b.pin.price,
+          pinned: true,
+        };
+        m.set(c, { offer, line: purchase(offer, b.qty, { byWeight: !!b.pin.perKg }) });
+      }
+      return m;
+    }
     const list = b.brand ? city.brands?.[String(b.productId)]?.[b.brand] ?? [] : city.items[String(b.productId)] ?? [];
     for (const t of list) {
       if (excluded.has(t[0])) continue;
-      m.set(t[0], toOffer(t, opts.usePromo));
+      const offer = toOffer(t, opts.usePromo);
+      m.set(t[0], { offer, line: purchase(offer, b.qty, meta) });
     }
     return m;
   });
 }
 
-function evaluate(chains: number[], basket: BasketItem[], offers: Map<number, Offer>[]) {
+function evaluate(chains: number[], basket: BasketItem[], choices: Map<number, Choice>[]) {
   let total = 0;
-  const missing: number[] = [];
-  const choice: (Offer | null)[] = [];
+  const missing: string[] = [];
+  const choice: (Choice | null)[] = [];
   for (let i = 0; i < basket.length; i++) {
-    let best: Offer | null = null;
+    let best: Choice | null = null;
     for (const c of chains) {
-      const o = offers[i].get(c);
-      if (o && (!best || o.price < best.price)) best = o;
+      const o = choices[i].get(c);
+      if (o && (!best || o.line.cost < best.line.cost)) best = o;
     }
     choice.push(best);
-    if (best) total += best.price * basket[i].qty;
-    else missing.push(basket[i].productId);
+    if (best) total += best.line.cost;
+    else missing.push(itemKey(basket[i]));
   }
-  const used = new Set(choice.filter(Boolean).map((o) => o!.chain));
+  const used = new Set(choice.filter(Boolean).map((o) => o!.offer.chain));
   return { total, missing, choice, used };
 }
 
 function toPlan(basket: BasketItem[], ev: ReturnType<typeof evaluate>): Plan {
   const byChain = new Map<number, StorePlan>();
+  let approx = false;
   ev.choice.forEach((o, i) => {
     if (!o) return;
-    let sp = byChain.get(o.chain);
-    if (!sp) byChain.set(o.chain, (sp = { chain: o.chain, lines: [], subtotal: 0 }));
-    const cost = o.price * basket[i].qty;
-    sp.lines.push({ productId: basket[i].productId, qty: basket[i].qty, offer: o, cost: r2(cost) });
-    sp.subtotal += cost;
+    let sp = byChain.get(o.offer.chain);
+    if (!sp) byChain.set(o.offer.chain, (sp = { chain: o.offer.chain, lines: [], subtotal: 0 }));
+    if (o.line.approx) approx = true;
+    sp.lines.push({ key: itemKey(basket[i]), productId: basket[i].productId, qty: basket[i].qty, offer: o.offer, ...o.line, cost: r2(o.line.cost) });
+    sp.subtotal += o.line.cost;
   });
   const stores = [...byChain.values()]
     .map((s) => ({ ...s, subtotal: r2(s.subtotal) }))
     .sort((a, b) => b.subtotal - a.subtotal);
-  return { stores, total: r2(ev.total), missing: ev.missing };
+  return { stores, total: r2(ev.total), missing: ev.missing, approx };
 }
 
 function* combinations(arr: number[], k: number, start = 0, acc: number[] = []): Generator<number[]> {
@@ -159,22 +239,22 @@ function* combinations(arr: number[], k: number, start = 0, acc: number[] = []):
 
 export function optimizeBasket(city: CityFile, basket: BasketItem[], opts: OptimizeOptions): OptimizeResult {
   const items = basket.filter((b) => b.qty > 0);
-  const offers = buildOffers(city, items, opts);
-  const allChains = [...new Set(offers.flatMap((m) => [...m.keys()]))];
+  const choices = buildChoices(city, items, opts);
+  const allChains = [...new Set(choices.flatMap((m) => [...m.keys()]))];
 
-  const ideal = evaluate(allChains, items, offers);
-  const singleEv = allChains.map((c) => ({ chain: c, ev: evaluate([c], items, offers) }));
+  const ideal = evaluate(allChains, items, choices);
+  const singleEv = allChains.map((c) => ({ chain: c, ev: evaluate([c], items, choices) }));
 
   // Кандидаты для перебора
   const k = opts.maxStores > 0 ? opts.maxStores : allChains.length;
   let candidates = allChains;
   if (allChains.length > 24) {
     const pick = new Set<number>();
-    offers.forEach((m) =>
+    choices.forEach((m) =>
       [...m.values()]
-        .sort((a, b) => a.price - b.price)
+        .sort((a, b) => a.line.cost - b.line.cost)
         .slice(0, 3)
-        .forEach((o) => pick.add(o.chain)),
+        .forEach((o) => pick.add(o.offer.chain)),
     );
     [...singleEv]
       .sort((a, b) => a.ev.missing.length - b.ev.missing.length || a.ev.total - b.ev.total)
@@ -206,25 +286,25 @@ export function optimizeBasket(city: CityFile, basket: BasketItem[], opts: Optim
   for (let size = 1; size <= maxK; size++) {
     for (const combo of combinations(candidates, size)) {
       evaluated++;
-      consider(evaluate(combo, items, offers));
+      consider(evaluate(combo, items, choices));
     }
   }
   // без лимита и штрафа оптимум — каждый товар в самой дешёвой сети (может быть больше 4 магазинов)
   if (unlimited) consider(ideal);
   const best: Ev | null = unlimited ? ideal : top[0]?.ev ?? null;
   const bestKey = best ? [...best.used].sort((a, b) => a - b).join(",") : "";
-  const plan = best ? toPlan(items, best) : { stores: [], total: 0, missing: items.map((b) => b.productId) };
+  const plan = best ? toPlan(items, best) : { stores: [], total: 0, missing: items.map(itemKey), approx: false };
   const alternatives = top
     .filter((x) => x.key !== bestKey)
     .slice(0, 2)
     .map((x) => toPlan(items, x.ev));
 
   // Сравнение с каждой сетью: переплата считается на тех товарах, что в ней есть
-  const planCost = new Map<number, number>();
-  plan.stores.forEach((s) => s.lines.forEach((l) => planCost.set(l.productId, l.cost)));
+  const planCost = new Map<string, number>();
+  plan.stores.forEach((s) => s.lines.forEach((l) => planCost.set(l.key, l.cost)));
   const singles: SingleStoreResult[] = singleEv.map(({ chain, ev }) => {
     const lines = toPlan(items, ev).stores[0]?.lines ?? [];
-    const same = lines.reduce((sum, l) => sum + (planCost.get(l.productId) ?? l.cost), 0);
+    const same = lines.reduce((sum, l) => sum + (planCost.get(l.key) ?? l.cost), 0);
     const total = r2(ev.total);
     return { chain, total, missing: ev.missing, planOnSameItems: r2(same), overpay: r2(total - same), lines };
   });
