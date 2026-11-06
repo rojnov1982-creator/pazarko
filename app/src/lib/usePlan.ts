@@ -1,7 +1,7 @@
 // Один расчёт плана для корзины и экрана «План»: предварительная сумма в корзине и итог не расходятся.
 
 import { useCallback, useMemo } from "react";
-import { todayIso } from "./brochures";
+import { brochureCandidates, brochureLookup, todayIso } from "./brochures";
 import { optimizeBasket, type ItemMeta } from "./optimize";
 import { itemKey, pinStatus, type PinStatus } from "./pins";
 import { FREE_MAX_STORES } from "./premium";
@@ -27,9 +27,11 @@ export function usePlan() {
     },
     [st.productById],
   );
+  // брошюры — основной источник акций: действующие предложения сравниваются с ценами КЗП в той же сети
+  const brochure = useMemo(() => brochureLookup(brochureCandidates(st.brochures, city, today)), [st.brochures, city, today]);
   const opts = useMemo(
-    () => ({ maxStores, usePromo: settings.usePromo, extraStoreCost: settings.extraStoreCost, excludedChains: [...excluded], meta, today }),
-    [maxStores, settings.usePromo, settings.extraStoreCost, excluded, meta, today],
+    () => ({ maxStores, usePromo: settings.usePromo, extraStoreCost: settings.extraStoreCost, excludedChains: [...excluded], meta, today, brochure }),
+    [maxStores, settings.usePromo, settings.extraStoreCost, excluded, meta, today, brochure],
   );
 
   const result = useMemo(() => (city && basket.length ? optimizeBasket(city, basket, opts) : null), [city, basket, opts]);

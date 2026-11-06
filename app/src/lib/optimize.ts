@@ -17,6 +17,10 @@
 // Если размер упаковки не распознан, строка помечается approx («ориентировъчно»), размер не придумывается.
 //
 // Закреплённое предложение (BasketItem.pin) участвует только в своей сети и по своей цене (см. pins.ts).
+//
+// Брошюры (OptimizeOptions.brochure): действующее предложение брошюры с понятной фасовкой (rp) — ещё одна цена
+// в своей сети, рядом с ценой КЗП; берётся та, где покупка дешевле. Акции «с карта» участвуют (у тех, кто следит
+// за акциями, карты сетей есть); условные механики (купи 2, от суммы, код) — нет, у них rp не считается.
 
 import { itemKey, pinStatus } from "./pins";
 import type { BasketItem, CityFile, PriceTuple } from "./types";
@@ -43,6 +47,26 @@ export interface OptimizeOptions {
   meta?: (productId: number) => ItemMeta | undefined;
   /** сегодня (YYYY-MM-DD) — для сроков закреплённых акций */
   today?: string;
+  /** действующие предложения брошюр для группы (и марки, если выбрана) — см. brochures.ts */
+  brochure?: (productId: number, brand?: string) => BrochureCandidate[];
+}
+
+/** Предложение брошюры, готовое к сравнению с ценами КЗП */
+export interface BrochureCandidate {
+  /** индексы сетей города (в режиме района — все магазины сети) */
+  chains: number[];
+  id: string;
+  name: string;
+  /** цена за эталонную фасовку группы (или за кг) */
+  price: number;
+  /** цена упаковки по брошюре */
+  packPrice: number;
+  /** обычная цена за эталонную фасовку, если указана */
+  regular?: number;
+  card?: boolean;
+  /** действует до (YYYY-MM-DD) */
+  to: string;
+  condition?: string;
 }
 
 export interface Offer {
@@ -57,6 +81,8 @@ export interface Offer {
   packPrice?: number;
   /** закреплённое пользователем предложение */
   pinned?: boolean;
+  /** цена из брошюры (а не из данных КЗП) */
+  brochure?: { id: string; to: string; card?: boolean; condition?: string };
 }
 
 export interface PlanLine {
@@ -185,6 +211,27 @@ function buildChoices(city: CityFile, basket: BasketItem[], opts: OptimizeOption
       if (excluded.has(t[0])) continue;
       const offer = toOffer(t, opts.usePromo);
       m.set(t[0], { offer, line: purchase(offer, b.qty, meta) });
+    }
+    // брошюры: в своей сети заменяют цену КЗП, если покупка выходит дешевле
+    if (opts.usePromo && opts.brochure) {
+      for (const bc of opts.brochure(b.productId, b.brand)) {
+        for (const c of bc.chains) {
+          if (excluded.has(c)) continue;
+          const offer: Offer = {
+            chain: c,
+            price: bc.price,
+            regular: bc.regular ?? bc.price,
+            isPromo: true,
+            product: bc.name,
+            store: "",
+            packPrice: bc.packPrice,
+            brochure: { id: bc.id, to: bc.to, card: bc.card, condition: bc.condition },
+          };
+          const line = purchase(offer, b.qty, meta);
+          const cur = m.get(c);
+          if (!cur || line.cost < cur.line.cost - 1e-9) m.set(c, { offer, line });
+        }
+      }
     }
     return m;
   });

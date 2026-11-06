@@ -370,6 +370,8 @@ export function OfferCard(props: {
   soon?: boolean;
   card?: boolean;
   condition?: string;
+  /** проверка по ценам КЗП: «обичайно X € → реално −N%» */
+  check?: { text: string; tone: "good" | "weak" | "plain" };
   qty?: number;
   qtyLabel?: string;
   onAdd?: () => void;
@@ -466,6 +468,23 @@ export function OfferCard(props: {
       </View>
       {!!p.condition && (
         <Text style={[s.muted, { fontSize: 14 * k }]}>{p.condition}</Text>
+      )}
+      {!!p.check && (
+        <View style={[s.row, { gap: 6, alignItems: "flex-start" }]}>
+          <Icon
+            name={p.check.tone === "good" ? "shield-checkmark-outline" : "information-circle-outline"}
+            size={18 * k}
+            color={p.check.tone === "good" ? C.green : p.check.tone === "weak" ? "#8A5A00" : C.muted}
+          />
+          <Text
+            style={[
+              s.muted,
+              { flex: 1, fontSize: 14 * k, color: p.check.tone === "good" ? C.green : p.check.tone === "weak" ? "#8A5A00" : C.muted, fontWeight: "600" },
+            ]}
+          >
+            {p.check.text}
+          </Text>
+        </View>
       )}
       {p.qty != null ? (
         <View
@@ -791,10 +810,13 @@ export function lineTexts(
     : line.packs != null && size
       ? `${t("packsOf", { packs: line.packs, size })} · ${m(line.offer.packPrice ?? line.offer.price)}`
       : `${qtyLabel(line.packs ?? line.qty, false, t, lang)} × ${m(line.offer.packPrice ?? line.offer.price)}`;
+  const bro = line.offer.brochure && !item?.pin ? line.offer.brochure : null;
   const what = [brand, product].filter(Boolean).join(" · ");
   return {
     group,
     what,
+    /** «📰 от брошурата · с карта» — для списка покупок */
+    brochureNote: bro ? `📰 ${t("fromBrochure")}${bro.card ? ` · ${t("withCard")}` : ""}` : "",
     qtyText,
     emoji: item?.pin && !p ? "🏷️" : productEmoji(p),
   };
@@ -835,15 +857,27 @@ export function PurchaseLine({
           <Text style={[s.muted, { fontStyle: "italic" }]}>{what}</Text>
         )}
         <Text style={[s.muted, { fontStyle: "italic" }]}>{qtyText}</Text>
-        {line.offer.isPromo && !item?.pin && (
-          <Text
-            style={[
-              s.muted,
-              { color: C.promo, fontSize: 13 * k, fontWeight: "700" },
-            ]}
-          >
-            {t("promo")}
+        {line.offer.brochure && !item?.pin ? (
+          <Text style={[s.muted, { color: C.promo, fontSize: 13 * k, fontWeight: "700" }]}>
+            📰 {[t("fromBrochure"), t("validTo", { date: shortDate(line.offer.brochure.to) }), line.offer.brochure.card ? t("withCard") : ""]
+              .filter(Boolean)
+              .join(" · ")}
           </Text>
+        ) : (
+          line.offer.isPromo &&
+          !item?.pin && (
+            <Text
+              style={[
+                s.muted,
+                { color: C.promo, fontSize: 13 * k, fontWeight: "700" },
+              ]}
+            >
+              {t("promo")}
+            </Text>
+          )
+        )}
+        {!!line.offer.brochure?.condition && !item?.pin && (
+          <Text style={[s.muted, { fontSize: 13 * k }]}>{line.offer.brochure.condition}</Text>
         )}
         {!!line.offer.store && (
           <Text style={[s.muted, { fontSize: 13 * k }]}>

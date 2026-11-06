@@ -12,7 +12,7 @@ import { C } from "../ui";
 function Tracking() {
   const pathname = usePathname();
   useEffect(() => {
-    track("$screen", { $screen_name: pathname === "/" ? "basket" : pathname.replace(/^\//, "") });
+    track("$screen", { $screen_name: pathname === "/" ? "offers" : pathname.replace(/^\//, "") });
   }, [pathname]);
   useEffect(() => {
     const sub = AppState.addEventListener("change", (s) => s !== "active" && flush());

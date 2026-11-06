@@ -1,4 +1,4 @@
-// Основные вкладки: Кошница · Продукти · Оферти · План. Настройки — отдельный экран поверх (шестерёнка в заголовке).
+// Основные вкладки: Оферти · Продукти · Кошница · План. Настройки — отдельный экран поверх (шестерёнка в заголовке).
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router/js-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -19,7 +19,7 @@ const icon =
   );
 
 export default function TabsLayout() {
-  const { basket, t, settings } = useStore();
+  const { basket, t } = useStore();
   const insets = useSafeAreaInsets();
   return (
     <Tabs
@@ -46,37 +46,14 @@ export default function TabsLayout() {
         },
       }}
     >
-      {/* Основные вкладки: Кошница · Продукти · Оферти · План; настройки — шестерёнка в заголовке каждого экрана */}
+      {/* Вкладки: Оферти (брошюры — главное) · Продукти · Кошница · План; настройки — шестерёнка в заголовке */}
+      <Tabs.Screen name="index" options={{ title: t("tabDeals"), tabBarIcon: icon("pricetag", "pricetag-outline") }} />
+      <Tabs.Screen name="catalog" options={{ title: t("tabProducts"), tabBarIcon: icon("grid", "grid-outline") }} />
       <Tabs.Screen
-        name="index"
-        options={{
-          title: t("tabBasket"),
-          tabBarIcon: icon("basket", "basket-outline"),
-          tabBarBadge: basket.length || undefined,
-        }}
+        name="basket"
+        options={{ title: t("tabBasket"), tabBarIcon: icon("basket", "basket-outline"), tabBarBadge: basket.length || undefined }}
       />
-      <Tabs.Screen
-        name="catalog"
-        options={{
-          title: t("tabProducts"),
-          tabBarIcon: icon("grid", "grid-outline"),
-        }}
-      />
-      <Tabs.Screen
-        name="deals"
-        options={{
-          title: t("tabDeals"),
-          tabBarIcon: icon("pricetag", "pricetag-outline"),
-          href: settings.easy ? null : undefined,
-        }}
-      />
-      <Tabs.Screen
-        name="result"
-        options={{
-          title: t("tabPlan"),
-          tabBarIcon: icon("checkbox", "checkbox-outline"),
-        }}
-      />
+      <Tabs.Screen name="result" options={{ title: t("tabPlan"), tabBarIcon: icon("checkbox", "checkbox-outline") }} />
     </Tabs>
   );
 }
