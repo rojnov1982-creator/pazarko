@@ -58,11 +58,15 @@
       "analytics": {
         "key": "phc_o6uQwPsuBwpqqmvWfvw9xynMQwEMQrdFAycyvVeDK9UD",
         "host": "https://eu.i.posthog.com"
+      },
+      "eas": {
+        "projectId": "f168a424-bcb1-43e0-8b7d-3d1e4a0d4fd6"
       }
     },
     "locales": {
       "bg": "./locales/bg.json",
       "en": "./locales/en.json"
-    }
+    },
+    "owner": "udooleg"
   }
 }
