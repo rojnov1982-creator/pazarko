@@ -1,3 +1,4 @@
+import { chainExcluded, chainMatches } from "./chains";
 import type { CityFile } from "./types";
 
 /** Минимальная цена группы товаров в городе и число сетей, где она есть */
@@ -60,8 +61,8 @@ export function brandsInCity(
 /** Сети, которые не участвуют в расчёте: выключенные вручную и, если включено, не-супермаркеты */
 /** Metro — магазин для фирм с клиентской картой: по умолчанию не участвует в расчёте */
 export function isMetro(c: { name: string }) {
-  const n = c.name.toUpperCase().replace(/[^\p{L}]+/gu, "");
-  return n.includes("МЕТРО") || n.includes("METRO");
+  // целым словом: «МЕТРОПОЛ» — не Metro
+  return chainMatches(c.name, "МЕТРО") || chainMatches(c.name, "METRO");
 }
 
 export function excludedIndexes(
@@ -71,7 +72,7 @@ export function excludedIndexes(
 ) {
   const set = new Set<number>();
   city?.chains.forEach((c, i) => {
-    if (eiks.includes(c.eik) || (onlyGrocery && c.kind && c.kind !== "grocery"))
+    if (chainExcluded(c, eiks) || (onlyGrocery && c.kind && c.kind !== "grocery"))
       set.add(i);
   });
   return set;

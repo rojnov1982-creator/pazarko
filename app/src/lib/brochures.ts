@@ -2,16 +2,30 @@
 
 import { matchesWords } from "./favorites";
 import type { BrochureCandidate } from "./optimize";
+import { chainExcluded, chainMatches, letters } from "./chains";
 import type { BrochureFile, BrochureOffer, CityFile } from "./types";
 
-const letters = (s: string) =>
-  s
-    .toUpperCase()
-    .normalize("NFKC")
-    .replace(/[^\p{L}]+/gu, "");
+/** Часовой пояс данных: цены и сроки брошюр считаются по Софии */
+const DATA_TZ = "Europe/Sofia";
 
-/** Сегодня по локальному времени устройства (YYYY-MM-DD) */
+/**
+ * Сегодня по времени Софии (YYYY-MM-DD) — как в данных: телефон в другом часовом поясе не должен
+ * на день раньше или позже показывать акцию «действует» / «изтекла». Если пояс недоступен — по времени устройства.
+ */
 export function todayIso(d = new Date()) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: DATA_TZ,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(d);
+    const get = (t: string) => parts.find((x) => x.type === t)?.value ?? "";
+    const iso = `${get("year")}-${get("month")}-${get("day")}`;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  } catch {
+    // Intl без часовых поясов — ниже по времени устройства
+  }
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
@@ -35,9 +49,8 @@ export function matchChains(
   if (!bro) return [];
   return bro.chains.map((ch) => {
     if (!city) return -1;
-    const keys = ch.match.map(letters);
     return city.chains.findIndex(
-      (c) => !c.sid && keys.some((k) => letters(c.name).includes(k)),
+      (c) => !c.sid && ch.match.some((k) => chainMatches(c.name, k)),
     );
   });
 }
@@ -54,7 +67,7 @@ export function visibleChains(
   if (!bro) return [];
   const m = matchChains(bro, city);
   if (!m.some((i) => i >= 0)) return bro.chains.map(() => true);
-  return m.map((i) => i >= 0 && !excludedEiks.includes(city!.chains[i].eik));
+  return m.map((i) => i >= 0 && !chainExcluded(city!.chains[i], excludedEiks));
 }
 
 /** Самое выгодное действующее предложение брошюр для группы (по цене за эталонную фасовку) */
@@ -64,6 +77,8 @@ export function bestBrochureOffer(
   visible: boolean[],
   today: string,
   brand?: string,
+  /** учитывать акции «с карта» (настройка «Оферти с клиентска карта») */
+  cards = true,
 ): BrochureOffer | null {
   if (!bro) return null;
   let best: BrochureOffer | null = null;
@@ -72,6 +87,7 @@ export function bestBrochureOffer(
       o.g !== group ||
       o.rp == null ||
       !visible[o.c] ||
+      (!cards && !!o.k) ||
       offerStatus(o, today) !== "now"
     )
       continue;
@@ -113,14 +129,15 @@ export function brochureCandidates(
   bro: BrochureFile | null,
   city: CityFile | null,
   today: string,
+  /** cards: false — акции «с карта» в план не идут (у человека нет карт сетей) */
+  { cards = true }: { cards?: boolean } = {},
 ): Map<number, Candidate[]> {
   const out = new Map<number, Candidate[]>();
   if (!bro || !city) return out;
   const chainsOf = bro.chains.map((ch) => {
-    const keys = ch.match.map(letters).filter(Boolean);
     const idx: number[] = [];
     city.chains.forEach(
-      (c, i) => keys.some((k) => letters(c.name).includes(k)) && idx.push(i),
+      (c, i) => ch.match.some((k) => chainMatches(c.name, k)) && idx.push(i),
     );
     return idx;
   });
@@ -130,6 +147,7 @@ export function brochureCandidates(
       o.rp == null ||
       o.p == null ||
       o.m ||
+      (!cards && !!o.k) ||
       offerStatus(o, today) !== "now"
     )
       continue;
@@ -192,10 +210,10 @@ export function kzpCheck(
   // в пересчёте дают ложную «реальную скидку»
   const ratio = o.p / o.rp;
   if (ratio < 0.75 || ratio > 1.33) return null;
-  const keys = (bro.chains[o.c]?.match ?? []).map(letters).filter(Boolean);
+  const keys = bro.chains[o.c]?.match ?? [];
   const idx = new Set<number>();
   city.chains.forEach(
-    (c, i) => keys.some((k) => letters(c.name).includes(k)) && idx.add(i),
+    (c, i) => keys.some((k) => chainMatches(c.name, k)) && idx.add(i),
   );
   if (!idx.size) return null;
   const brands = city.brands?.[String(o.g)];

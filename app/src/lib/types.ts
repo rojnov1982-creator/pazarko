@@ -68,6 +68,8 @@ export type ChainKind = "grocery" | "pharmacy" | "other";
 export interface ChainInfo {
   name: string;
   eik: string;
+  /** все ЕИК сети, если под одним названием данные подают несколько фирм */
+  eiks?: string[];
   stores: number;
   kind?: ChainKind;
   /** в режиме «район»: конкретный магазин */

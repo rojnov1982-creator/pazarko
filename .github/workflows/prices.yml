@@ -52,7 +52,13 @@ jobs:
           git add data-pipeline/geo 2>/dev/null || true
           if ! git diff --cached --quiet; then
             git commit -m "Координаты магазинов [skip ci]"
-            git pull --rebase origin main && git push
+            # Публикация цен не зависит от сохранения координат: если main изменился и rebase или push
+            # не прошли, возвращаемся к своему коммиту (координаты остаются в рабочей папке и попадают
+            # в сегодняшние данные), а в репозиторий они сохранятся при следующем запуске.
+            if ! (git pull --rebase origin main && git push); then
+              git rebase --abort 2>/dev/null || true
+              echo "::warning::Координаты магазинов не сохранены в репозитории (main изменился во время запуска); цены публикуются"
+            fi
           fi
       - name: Пересобрать данные с координатами
         run: node ingest.mjs --out ../site

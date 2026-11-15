@@ -14,7 +14,7 @@ export function Paywall() {
       <ScrollView style={s.screen} contentContainerStyle={[s.pad, { paddingTop: 28 }]}>
         <View style={[s.row, { justifyContent: "space-between" }]}>
           <Text style={{ fontSize: 40 }}>🧺✨</Text>
-          <Pressable onPress={closePaywall} hitSlop={12}>
+          <Pressable onPress={closePaywall} hitSlop={12} accessibilityRole="button">
             <Text style={{ color: C.green, fontWeight: "700" }}>{t("close")}</Text>
           </Pressable>
         </View>

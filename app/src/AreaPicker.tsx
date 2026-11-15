@@ -90,7 +90,7 @@ export function AreaPicker({ visible, onClose }: { visible: boolean; onClose: ()
       <View style={[s.screen, s.pad, { flex: 1 }]}>
         <View style={[s.row, { justifyContent: "space-between" }]}>
           <Text style={[s.title, { fontSize: 22 }]}>{t("areaTitle")}</Text>
-          <Pressable onPress={onClose} hitSlop={10}>
+          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button">
             <Text style={{ color: C.green, fontWeight: "700" }}>{t("close")}</Text>
           </Pressable>
         </View>
@@ -128,6 +128,8 @@ export function AreaPicker({ visible, onClose }: { visible: boolean; onClose: ()
                     onPress={() =>
                       setIds((cur) => (on ? cur.filter((i) => i !== x[0]) : cur.length >= MAX_AREA_STORES ? cur : [...cur, x[0]]))
                     }
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: on }}
                     style={[s.row, { paddingVertical: 11 }]}
                   >
                     <View

@@ -38,8 +38,13 @@ export function usePlan() {
   );
   // брошюры — основной источник акций: действующие предложения сравниваются с ценами КЗП в той же сети
   const brochure = useMemo(
-    () => brochureLookup(brochureCandidates(st.brochures, city, today)),
-    [st.brochures, city, today],
+    () =>
+      brochureLookup(
+        brochureCandidates(st.brochures, city, today, {
+          cards: settings.useCards,
+        }),
+      ),
+    [st.brochures, city, today, settings.useCards],
   );
   const opts = useMemo(
     () => ({

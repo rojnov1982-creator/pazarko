@@ -149,6 +149,7 @@ export default function PlanScreen() {
           visibleBro,
           today,
           b.brand,
+          settings.useCards,
         );
         if (o && o.rp! < l.offer.price * 0.95 && o.rp! >= l.offer.price * 0.4)
           h.set(l.key, o);
@@ -160,6 +161,7 @@ export default function PlanScreen() {
     easy,
     settings.showDeals,
     settings.usePromo,
+    settings.useCards,
     byKey,
     visibleBro,
     today,

@@ -23,6 +23,7 @@ import {
 } from "./data";
 import { deviceLang, Lang, makeT, T, TKey } from "./i18n";
 import { canUse, Feature } from "./premium";
+import { parseSaved } from "./persist";
 import { itemKey } from "./pins";
 import { isMetro } from "./prices";
 import type {
@@ -93,6 +94,8 @@ export interface Settings {
   lang: Lang;
   /** учитывать Metro (нужна клиентская карта); по умолчанию нет */
   includeMetro: boolean;
+  /** учитывать акции брошюр «с карта»; выключают те, у кого нет клиентских карт сетей */
+  useCards: boolean;
   /** согласие на анонимную статистику: null — ещё не спрашивали */
   analytics: boolean | null;
   /** «Лесен режим»: крупнее и меньше кнопок; null — ещё не выбирали (спрашиваем при первом запуске) */
@@ -113,6 +116,7 @@ const DEFAULT_SETTINGS: Settings = {
   analytics: null,
   easy: null,
   includeMetro: false,
+  useCards: true,
 };
 
 /** настройки, изменения которых пишем в статистику */
@@ -126,6 +130,7 @@ const TRACKED_SETTINGS = [
   "lang",
   "easy",
   "includeMetro",
+  "useCards",
 ] as const;
 
 const newId = () =>
@@ -303,47 +308,50 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [paywallOpen, setPaywallOpen] = useState(false);
 
   // Первая загрузка: сохранённое состояние + справочники (reload() — повторить)
-  const restored = useRef(false);
+  const restored = useRef(false); // сохранённое состояние прочитано
+  const savedEkatte = useRef<string | null>(null); // сохранённый город, пока список городов не загрузился
+  const cityPicked = useRef(false);
+  // Запись состояния разрешена только после того, как сохранённое прочитано: иначе неудачная загрузка цен
+  // (нет сети при первом запуске) записывала пустую корзину и настройки поверх сохранённых.
+  const [persistOn, setPersistOn] = useState(false);
   useEffect(() => {
     (async () => {
+      // 1) сохранённое состояние: один раз и независимо от сети; старые корзины (без закреплений) подходят как есть
+      if (!restored.current) {
+        try {
+          const raw = await AsyncStorage.getItem(KEY);
+          const s = parseSaved(raw);
+          // нечитаемое сохранение не теряем молча: копия остаётся под отдельным ключом
+          if (raw && !s) AsyncStorage.setItem(KEY + ":corrupt", raw).catch(() => {});
+          if (s?.basket) setBasket(s.basket);
+          if (s?.settings)
+            setSettings({
+              ...DEFAULT_SETTINGS,
+              lang: deviceLang(),
+              ...(s.settings as Partial<Settings>),
+            });
+          if (s?.shopping) setShopping(s.shopping as unknown as ShoppingList);
+          if (s?.favorites) setFavorites(s.favorites);
+          savedEkatte.current = s?.ekatte ?? null;
+          restored.current = true;
+          setPersistOn(true);
+        } catch {
+          // хранилище не прочиталось: поверх него ничего не пишем, reload() попробует снова
+        }
+      }
+      // 2) справочники
       try {
-        const [saved, idx] = await Promise.all([
-          AsyncStorage.getItem(KEY).catch(() => null),
-          loadIndex(),
-        ]);
+        const idx = await loadIndex();
         const prods = await loadProducts(); // после index — чтобы взять файл текущей версии данных
         setIndex(idx);
         setProducts(prods);
         loadBrochures().then(setBrochures); // не задерживаем запуск
         loadBrochureHistory().then(setHistory);
         setError(null);
-        if (!restored.current) {
-          // сохранённое состояние читаем один раз; старые корзины (без закреплений) подходят как есть
-          restored.current = true;
-          const s = saved ? JSON.parse(saved) : {};
-          if (Array.isArray(s.basket))
-            setBasket(
-              s.basket.filter(
-                (b: BasketItem) =>
-                  b && typeof b.productId === "number" && b.qty > 0,
-              ),
-            );
-          if (s.settings)
-            setSettings({
-              ...DEFAULT_SETTINGS,
-              lang: deviceLang(),
-              ...s.settings,
-            });
-          if (s.shopping && Array.isArray(s.shopping.stores))
-            setShopping(s.shopping);
-          if (Array.isArray(s.favorites))
-            setFavorites(
-              s.favorites.filter(
-                (f: Favorite) => f && f.id && Array.isArray(f.words),
-              ),
-            );
-          const known = idx.cities.some((c) => c.ekatte === s.ekatte);
-          setEkatte(known ? s.ekatte : (idx.cities[0]?.ekatte ?? null));
+        if (!cityPicked.current) {
+          cityPicked.current = restored.current; // без прочитанного сохранения выбор города временный
+          const known = idx.cities.some((c) => c.ekatte === savedEkatte.current);
+          setEkatte(known ? savedEkatte.current : (idx.cities[0]?.ekatte ?? null));
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -430,12 +438,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // Сохранение
   useEffect(() => {
-    if (!ready) return;
+    if (!persistOn) return;
     AsyncStorage.setItem(
       KEY,
-      JSON.stringify({ ekatte, basket, settings, shopping, favorites }),
-    ).catch(() => {});
-  }, [ready, ekatte, basket, settings, shopping, favorites]);
+      // пока список городов не загрузился, город не выбран: сохранённый не затираем
+      JSON.stringify({
+        v: 1, // версия формата сохранённого состояния (для будущих изменений)
+        ekatte: ekatte ?? savedEkatte.current,
+        basket,
+        settings,
+        shopping,
+        favorites,
+      }),
+    ).catch((e) => console.warn("Pazarko: state was not saved", e));
+  }, [persistOn, ekatte, basket, settings, shopping, favorites]);
 
   // Статистика: включаем по согласию, общие свойства, событие запуска
   const opened = useRef(false);
@@ -492,7 +508,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         ? cityReady
           ? city
           : null
-        : (areaStatus === "ready" || areaStatus === "partial") && areaCity
+        : (areaStatus === "ready" || areaStatus === "partial") &&
+            areaCity &&
+            areaCity.ekatte === ekatte // после смены города район прежнего города не показываем
           ? areaCity
           : null,
     baseCity: cityReady ? city : null,
@@ -632,8 +650,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       };
       setFavorites((fs) => [...fs, fav]);
       setBasket((b) => [...b, favItem(fav)]);
+      // текст, который человек написал сам, в статистику не отправляем — только группу и марку
       track("favorite_added", {
-        name: text,
         group: productId,
         brand: brand ?? "",
       });

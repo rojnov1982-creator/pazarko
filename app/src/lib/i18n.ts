@@ -102,6 +102,7 @@ const bg = {
   dsPrices: "Цени към {date}",
   dsWholeCity: "целия град",
   dsStale: "Няма връзка — показани са запазените цени",
+  dsOld: "Цените са от {date} — по-нови данни още няма",
   dsError: "Цените не се обновиха",
   dsRetry: "Опитай отново",
   dsLoading: "Зареждане на цените…",
@@ -266,6 +267,8 @@ const bg = {
   calc: "Изчисление",
   usePromo: "Отчитай промоции",
   usePromoSub: "Използвай промо цените, ако са по-ниски",
+  useCards: "Оферти с клиентска карта",
+  useCardsSub: "Изключете, ако нямате карти на веригите — планът няма да разчита на цени „с карта“",
   storeCost: "Цена на допълнителен магазин",
   storeCostSub:
     "Колко струва за вас пътят до още един магазин. Планът няма да се раздробява заради стотинки.",
@@ -529,6 +532,7 @@ const en: Dict = {
   dsPrices: "Prices as of {date}",
   dsWholeCity: "whole city",
   dsStale: "No connection — showing saved prices",
+  dsOld: "Prices are from {date} — no newer data yet",
   dsError: "Prices could not be updated",
   dsRetry: "Try again",
   dsLoading: "Loading prices…",
@@ -686,6 +690,8 @@ const en: Dict = {
   calc: "Calculation",
   usePromo: "Include promotions",
   usePromoSub: "Use promo prices when they are lower",
+  useCards: "Loyalty-card offers",
+  useCardsSub: "Turn off if you have no chain cards — the plan will not rely on “with card” prices",
   storeCost: "Cost of an extra store",
   storeCostSub:
     "What a trip to one more store is worth to you. The plan won't split up just to save a few cents.",
