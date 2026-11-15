@@ -12,13 +12,14 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { unzipSync } from "fflate";
 import { parseChainCsv } from "./lib/parse.mjs";
 import { aggregate } from "./lib/aggregate.mjs";
 import { FIXED_GROUPS, normalizeSizes, RANGE_GROUPS } from "./lib/sizes.mjs";
 import { BRANDS } from "./lib/brands.mjs";
 
-const here = path.dirname(new URL(import.meta.url).pathname);
+const here = path.dirname(fileURLToPath(import.meta.url)); // fileURLToPath: путь верен и на Windows
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, a, i, all) => {
     if (a.startsWith("--")) acc.push([a.slice(2), all[i + 1]?.startsWith("--") ? true : all[i + 1] ?? true]);
@@ -100,17 +101,34 @@ for (const [name, data] of Object.entries(entries)) {
   } else seen.set(h, name);
 }
 
+// сообщение, заметное в GitHub Actions (жёлтая пометка в запуске), и обычная строка в консоли вне Actions
+const warn = (msg) => console.warn(process.env.GITHUB_ACTIONS ? `::warning::${msg}` : `  ! ${msg}`);
+
+// Данные старше позавчерашних: архив КЗП задерживается. Приложение покажет «Цените са от …» (от трёх дней).
+if (!args.date && !args.zip && date < daysAgoSofia(2))
+  warn(`Архив КЗП задерживается: самые свежие данные за ${date}. Проверьте https://kolkostruva.bg/opendata`);
+
+const skipped = {}; // по всем файлам: сколько строк пропущено и почему
 for (const [name, data] of Object.entries(entries)) {
   if (!/\.csv$/i.test(name) || skip.has(name)) continue;
   files++;
   try {
-    for (const r of parseChainCsv(decode(data), name)) rows.push(r); // без spread: у крупных сетей сотни тысяч строк
+    const st = {};
+    for (const r of parseChainCsv(decode(data), name, st)) rows.push(r); // без spread: у крупных сетей сотни тысяч строк
+    for (const [k, v] of Object.entries(st)) skipped[k] = (skipped[k] ?? 0) + v;
+    // цена есть, но не читается (новый формат числа?) — раньше такие строки пропадали молча
+    if ((st.badPrice ?? 0) > Math.max(20, 0.02 * (st.total ?? 0)))
+      warn(`«${name}»: цена не читается в ${st.badPrice} строках из ${st.total}`);
   } catch (e) {
     errors.push(`${name}: ${e.message}`);
   }
 }
 console.log(`CSV-файлов: ${files}, строк: ${rows.length}, ошибок разбора: ${errors.length}`);
-errors.slice(0, 5).forEach((e) => console.warn("  ! " + e));
+console.log(
+  `Пропущено строк: без цены ${skipped.noPrice ?? 0}, цена не читается ${skipped.badPrice ?? 0}, ` +
+    `населённый пункт ${skipped.badPlace ?? 0}, группа ${skipped.badGroup ?? 0} (всего строк ${skipped.total ?? 0})`,
+);
+errors.slice(0, 5).forEach((e) => warn(e));
 if (!rows.length) throw new Error("В архиве не найдено ни одной корректной строки");
 
 const settlements = JSON.parse(fs.readFileSync(path.join(here, "ref/settlements.json"), "utf8"));

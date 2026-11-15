@@ -69,6 +69,8 @@ export function Button({
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !!disabled }}
       style={({ pressed }) => [
         s.btn,
         kind === "ghost" && s.btnGhost,
@@ -85,7 +87,12 @@ export function Button({
 export function Chip({ label, active, onPress }: { label: string; active?: boolean; onPress: () => void }) {
   const s = useS();
   return (
-    <Pressable onPress={onPress} style={[s.chip, active && s.chipActive]}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: !!active }}
+      style={[s.chip, active && s.chipActive]}
+    >
       <Text style={[s.chipText, active && { color: "#fff" }]}>{label}</Text>
     </Pressable>
   );

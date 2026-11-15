@@ -64,7 +64,7 @@ const typeIdx = new Map();
 const idx = (m, v) => (m.has(v) ? m.get(v) : (m.set(v, m.size), m.size - 1));
 const offers = [];
 const seen = new Set();
-const stats = { files: files.length, rows: 0, expired: 0, future: 0, noChain: 0, dup: 0, comparable: 0 };
+const stats = { files: files.length, rows: 0, expired: 0, future: 0, noChain: 0, dup: 0, comparable: 0, broken: 0 };
 
 // История брошюр по месяцам: каждое предложение каждой недели (не только последнее — иначе будущая акция затирала бы
 // прошедшую), с ценой, обычной ценой и УСЛОВИЯМИ (механика, текст условия, «с карта»). Месяц — по дате начала акции.
@@ -116,6 +116,11 @@ for (const f of files) {
     const chain = (r.chain ?? "").trim();
     if (!CHAINS[chain]) {
       stats.noChain++;
+      continue;
+    }
+    // сбой разбора брошюры: вместо названия — обрывок ценника («€|бр. сирене»); такую строку не показываем
+    if (/^\s*[€|]/.test(r.product ?? "")) {
+      stats.broken++;
       continue;
     }
     const from = r.valid_from || r.brochure_from;
@@ -229,6 +234,6 @@ fs.writeFileSync(path.join(histDir, "index.json"), JSON.stringify({ v: 2, genera
 console.log(
   `Брошюры: файлов ${stats.files}, строк ${stats.rows} → предложений ${offers.length} ` +
     `(сравнимых с КЗП ${stats.comparable}; истекли ${stats.expired}, позже ${UPCOMING_DAYS} дн. ${stats.future}, ` +
-    `дубли ${stats.dup}, неизвестная сеть ${stats.noChain}) → ${outDir}/brochures.json; ` +
+    `дубли ${stats.dup}, неизвестная сеть ${stats.noChain}, обрывки названий ${stats.broken}) → ${outDir}/brochures.json; ` +
     `история: ${histTotal} предложений за ${months.length} мес. → history/`,
 );

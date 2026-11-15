@@ -27,15 +27,33 @@ export function normalizeEkatte(raw) {
   return c.padStart(5, "0");
 }
 
-function toPrice(raw) {
-  const v = unquote(raw).replace(",", ".");
+/**
+ * Цена из ячейки: «2,49», «2.49», «1 234,50», «1,234.50», «1.234,50», «2,49 €».
+ * Последний разделитель — десятичный, остальные — разделители тысяч. null — пусто или не цена.
+ */
+export function toPrice(raw) {
+  let v = unquote(raw).replace(/[\s  ]/g, "").replace(/(€|EUR)$/i, "");
   if (!v) return null;
+  const lastComma = v.lastIndexOf(","), lastDot = v.lastIndexOf(".");
+  if (lastComma >= 0 && lastDot >= 0) {
+    // оба знака: десятичный — тот, что правее
+    v = lastComma > lastDot ? v.replace(/\./g, "").replace(",", ".") : v.replace(/,/g, "");
+  } else if (lastComma >= 0) {
+    // только запятые: одна — десятичная («2,49»), несколько — тысячи («1,234,567»)
+    v = v.indexOf(",") === lastComma ? v.replace(",", ".") : v.replace(/,/g, "");
+  } else if (lastDot >= 0 && v.indexOf(".") !== lastDot) v = v.replace(/\./g, ""); // «1.234.567»
+  if (!/^\d+(\.\d+)?$/.test(v)) return null;
   const n = Number(v);
   return Number.isFinite(n) && n > 0 && n < 10000 ? n : null;
 }
 
-/** @returns {Array<{ekatte,store,product,productId,price,promo,eik,chain}>} */
-export function parseChainCsv(text, filename) {
+/**
+ * @param {{total?:number, noPrice?:number, badPrice?:number, badPlace?:number, badGroup?:number}} [stats]
+ *   счётчики пропущенных строк (накапливаются): цена пустая / цена не читается / населённый пункт / группа
+ * @returns {Array<{ekatte,store,product,productId,price,promo,eik,chain}>}
+ */
+export function parseChainCsv(text, filename, stats = {}) {
+  const skip = (why) => { stats[why] = (stats[why] ?? 0) + 1; };
   const { eik, chain } = parseChainFromFilename(filename);
   const clean = stripBom(text);
   const nl = clean.indexOf("\n");
@@ -57,12 +75,13 @@ export function parseChainCsv(text, filename) {
     const c0 = unquote(stripBom(r[0] ?? ""));
     if (i === 0 && /Населено\s*място/i.test(c0)) continue; // заголовок
     if (!c0) continue;
+    stats.total = (stats.total ?? 0) + 1;
     const price = toPrice(r[5]);
-    if (price == null) continue;
+    if (price == null) { skip(unquote(r[5]) ? "badPrice" : "noPrice"); continue; }
     const ekatte = normalizeEkatte(c0);
-    if (!/^\d{5}$/.test(ekatte)) continue;
+    if (!/^\d{5}$/.test(ekatte)) { skip("badPlace"); continue; }
     const productId = parseInt(unquote(r[4]), 10);
-    if (!Number.isFinite(productId) || productId < 1 || productId > 101) continue;
+    if (!Number.isFinite(productId) || productId < 1 || productId > 101) { skip("badGroup"); continue; }
     let promo = toPrice(r[6]);
     if (promo != null && promo >= price) promo = null; // «промо» не дешевле — игнорируем
     rows.push({

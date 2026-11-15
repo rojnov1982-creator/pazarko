@@ -71,6 +71,11 @@ export function aggregate(rows, { date, settlements, minChains = 2, geo = {}, ar
     groupsByEik.get(r.eik).add(r.productId);
   }
   const kindByEik = new Map([...groupsByEik].map(([e, gs]) => [e, chainKind(gs)]));
+  // сеть из нескольких фирм: супермаркет, если супермаркет хотя бы одна из них
+  const kindOf = (c) => {
+    const kinds = [...c.eiks].map((e) => kindByEik.get(e) ?? "other");
+    return kinds.includes("grocery") ? "grocery" : kinds.includes("pharmacy") ? "pharmacy" : "other";
+  };
 
   // 1. Отсев явных ошибок ввода: цена в 4+ раза ниже/выше национальной медианы группы.
   const byGroup = new Map();
@@ -95,7 +100,11 @@ export function aggregate(rows, { date, settlements, minChains = 2, geo = {}, ar
     // одна марка может подавать данные от нескольких фирм (два «ФАНТАСТИКО») — объединяем по названию
     const key = r.chain.toUpperCase();
     let ch = city.get(key);
-    if (!ch) city.set(key, (ch = { name: r.chain, eik: r.eik, stores: new Set(), items: new Map(), brands: new Map(), deals: new Map() }));
+    if (!ch) city.set(key, (ch = { name: r.chain, eik: r.eik, eiks: new Set(), stores: new Set(), items: new Map(), brands: new Map(), deals: new Map() }));
+    // ЕИК сети — наименьший из её фирм: не зависит от порядка файлов в архиве, поэтому сохранённое
+    // в приложении исключение сети («Вериги в града») не слетает на следующий день
+    ch.eiks.add(r.eik);
+    if (r.eik < ch.eik) ch.eik = r.eik;
     ch.stores.add(r.store);
     updBest(ch.items, r.productId, r);
     const brand = brandOf(r.productId, r.product, r.chain);
@@ -147,7 +156,7 @@ export function aggregate(rows, { date, settlements, minChains = 2, geo = {}, ar
         const [gid, brand] = k.split("|");
         ((brands[gid] ??= {})[brand] ??= []).push(toTuple(ci, it));
       }
-      if (kindByEik.get(c.eik) === "grocery") for (const d of c.deals.values()) dealPool.push({ ci, ...d });
+      if (kindOf(c) === "grocery") for (const d of c.deals.values()) dealPool.push({ ci, ...d });
     });
     for (const g of Object.keys(items)) items[g].sort((a, b) => a[3] - b[3]);
     for (const g of Object.values(brands)) for (const list of Object.values(g)) list.sort((a, b) => a[3] - b[3]);
@@ -193,7 +202,14 @@ export function aggregate(rows, { date, settlements, minChains = 2, geo = {}, ar
       ekatte,
       name,
       nameEn,
-      chains: chains.map((c) => ({ name: c.name, eik: c.eik, stores: c.stores.size, kind: kindByEik.get(c.eik) ?? "other" })),
+      // eiks — все фирмы сети (если их несколько): исключение сети в приложении действует по любому из них
+      chains: chains.map((c) => ({
+        name: c.name,
+        eik: c.eik,
+        ...(c.eiks.size > 1 ? { eiks: [...c.eiks].sort() } : {}),
+        stores: c.stores.size,
+        kind: kindOf(c),
+      })),
       items,
       brands,
       deals,
@@ -205,7 +221,7 @@ export function aggregate(rows, { date, settlements, minChains = 2, geo = {}, ar
       name,
       nameEn,
       chains: chains.length,
-      grocery: chains.filter((c) => kindByEik.get(c.eik) === "grocery").length,
+      grocery: chains.filter((c) => kindOf(c) === "grocery").length,
       stores: chains.reduce((s, c) => s + c.stores.size, 0),
       groups: Object.keys(items).length,
       promos: promoCount,

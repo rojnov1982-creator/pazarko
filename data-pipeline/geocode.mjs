@@ -13,9 +13,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { addressCandidates, distanceKm } from "./lib/address.mjs";
 
-const here = path.dirname(new URL(import.meta.url).pathname);
+const here = path.dirname(fileURLToPath(import.meta.url)); // fileURLToPath: путь верен и на Windows
 const arg = (name, dflt) => {
   const i = process.argv.indexOf(`--${name}`);
   return i > 0 ? process.argv[i + 1] : dflt;

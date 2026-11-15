@@ -6,6 +6,7 @@ import { ANALYTICS_AVAILABLE, track } from "../lib/analytics";
 import { DATA_URL, IS_DEMO } from "../lib/data";
 import { LANGS } from "../lib/i18n";
 import { PREMIUM_ENABLED } from "../lib/premium";
+import { chainExcluded } from "../lib/chains";
 import { isMetro } from "../lib/prices";
 import { useStore } from "../lib/store";
 import { C, Card, Chip, H, money, Stepper, useS } from "../ui";
@@ -58,7 +59,7 @@ export default function SettingsScreen() {
         </View>
 
         {PREMIUM_ENABLED && (
-        <Pressable onPress={st.openPaywall}>
+        <Pressable onPress={st.openPaywall} accessibilityRole="button">
           <Card style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: C.green, borderColor: C.green, marginTop: 8 }}>
             <Text style={{ fontSize: 26 }}>✨</Text>
             <View style={{ flex: 1 }}>
@@ -77,6 +78,8 @@ export default function SettingsScreen() {
         <H style={{ marginTop: 6 }}>{t("calc")}</H>
         <Card style={{ gap: 12 }}>
           <Toggle title={t("usePromo")} sub={t("usePromoSub")} value={cfg.usePromo} onChange={(v) => st.updateSettings({ usePromo: v })} />
+          <View style={s.divider} />
+          <Toggle title={t("useCards")} sub={t("useCardsSub")} value={cfg.useCards} onChange={(v) => st.updateSettings({ useCards: v })} />
           <View style={s.divider} />
           <View style={[s.row, { justifyContent: "space-between" }]}>
             <View style={{ flex: 1 }}>
@@ -119,12 +122,14 @@ export default function SettingsScreen() {
                 (c.kind === "pharmacy" ? ` · ${t("kindPharmacy")}` : c.kind === "other" ? ` · ${t("kindOther")}` : "") +
                 (isMetro(c) ? ` · ${t("metroCard")}` : "")
               }
-              value={!cfg.excludedChains.includes(c.eik) && (!isMetro(c) || cfg.includeMetro)}
+              value={!chainExcluded(c, cfg.excludedChains) && (!isMetro(c) || cfg.includeMetro)}
               onChange={(v) => {
                 track(v ? "chain_included" : "chain_excluded", { chain: c.name, eik: c.eik });
-                const excludedChains = v ? cfg.excludedChains.filter((e) => e !== c.eik) : [...cfg.excludedChains, c.eik];
+                // у сети из нескольких фирм включение снимает исключение по всем её ЕИК
+                const own = (e: string) => e === c.eik || !!c.eiks?.includes(e);
+                const excludedChains = v ? cfg.excludedChains.filter((e) => !own(e)) : [...cfg.excludedChains, c.eik];
                 // строка Metro управляет тем же флагом, что и переключатель «Metro» выше
-                st.updateSettings(isMetro(c) ? { includeMetro: v, excludedChains: cfg.excludedChains.filter((e) => e !== c.eik) } : { excludedChains });
+                st.updateSettings(isMetro(c) ? { includeMetro: v, excludedChains: cfg.excludedChains.filter((e) => !own(e)) } : { excludedChains });
               }}
             />
           ))}
@@ -146,7 +151,7 @@ export default function SettingsScreen() {
               <View style={s.divider} />
             </>
           )}
-          <Pressable onPress={() => Linking.openURL("https://rojnov1982-creator.github.io/pazarko/privacy.html")}>
+          <Pressable accessibilityRole="link" onPress={() => Linking.openURL("https://rojnov1982-creator.github.io/pazarko/privacy.html")}>
             <Text style={{ color: C.green, fontWeight: "600" }}>{t("privacyPolicy")} →</Text>
           </Pressable>
         </Card>

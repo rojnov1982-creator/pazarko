@@ -181,8 +181,41 @@ export const OWN_BRAND_TOKENS = {
   "БУРЛЕКС": ["АКЦЕНТ"], // CBA
   "КАУФЛАНД": ["K CLASSIC", "К КЛАСИК", "K BIO", "K FAVOURITES"],
 };
-/** Сети, которые пишут свою марку без названия: товар без известной марки = собственная марка */
+/**
+ * Сети, которые пишут свою марку без названия («Кашкавал от краве мляко БДС 400g»): товар без марки = собственная марка.
+ * Товар с чужой маркой, которой нет в словаре группы, собственной маркой НЕ считается (раньше считался любой —
+ * и чужой товар попадал в сравнение «собствени марки»). Признак чужой марки — латинское слово в названии,
+ * которое не входит ни в собственные марки сети (OWN_LABELS), ни в общие слова (GENERIC_LATIN).
+ * Ограничение: чужая марка, написанная кириллицей и не внесённая в словарь группы, так не распознаётся.
+ */
 const OWN_BY_DEFAULT = ["ЛИДЛ", "LIDL"];
+/** Собственные марки таких сетей (Lidl): название с любой из них — собственная марка */
+export const OWN_LABELS = [
+  "MILBONA", "PILOS", "PIKOK", "DULANO", "FRESHONA", "SOLEVITA", "FREEWAY", "SAGUARO", "BELLAROM", "FIN CARRE", "FIN CARRÉ",
+  "FAVORINA", "CRUSTI CROC", "SNACK DAY", "ALESTO", "COMBINO", "KANIA", "VITASIA", "ITALIAMO", "ERIDANOUS",
+  "SOL MAR", "DELUXE", "CHEF SELECT", "LORD NELSON", "TASTINO", "SONDEY", "MISTER CHOC", "GELATELLI", "BON GELATI",
+  "BELBAKE", "VITA D OR", "PRIMADONNA", "BARESA", "NIXE", "OCEAN SEA", "TRATTORIA ALFREDO", "MCENNEDY", "CULINEA",
+  "MARIBEL", "GOLDEN SUN", "PERLENBACHER", "ARGUS", "GRAFENWALDER", "BIOTREND", "VEMONDO", "METZGERFRISCH",
+  "РОДНА СТРЯХА", "ПИЛОС", "МИЛБОНА", "ПИКОК",
+];
+/** Латинские слова, которые не являются маркой: единицы, размеры, вид товара */
+const GENERIC_LATIN = new Set([
+  "XXL", "XL", "UHT", "OHT", "ESL", "BIO", "PET", "MIX", "LIGHT", "ZERO", "MAX", "MAXI", "MINI", "PREMIUM",
+  "CLASSIC", "EXTRA", "FRESH", "NATURAL", "NATUR", "VEGAN", "PROTEIN", "PACK", "TETRA", "GRILL", "BBQ", "DUO",
+  "TRIO", "FAMILY", "ORIGINAL", "GOLD", "BLACK", "WHITE", "RED", "GREEN", "ESPRESSO", "CREMA", "LUNGO", "CAFE",
+  "COLA", "TONIC", "IPA", "LAGER", "PILS", "PILSNER", "DARK", "BLANC", "ROSE", "SMOOTHIE", "KETCHUP", "CHIPS",
+  "TOAST", "BURGER", "PIZZA", "PASTA", "PENNE", "FUSILLI", "SPAGHETTI", "BASMATI", "JASMINE", "ARABICA",
+  "ROBUSTA", "GOUDA", "EDAM", "EMMENTAL", "MOZZARELLA", "CHEDDAR", "FETA", "BRIE", "RICOTTA", "MASCARPONE",
+  "PROSCIUTTO", "SALAMI", "CHORIZO", "BACON", "WURST", "FILET", "STEAK", "SUSHI", "TOFU", "MUESLI", "CORN",
+  "FLAKES", "CHOCO", "CHOCOLATE", "VANILLA", "CARAMEL", "COCOA", "KAKAO", "ICE", "TEA", "MILK", "GREEK",
+  "STYLE", "TYPE", "AND", "THE", "WITH", "NON", "ALC", "VOL", "PCS", "TBL", "CAPS",
+]);
+const latinWords = (n) => n.match(/(?<= )[A-Z]{3,}(?= )/g) ?? [];
+const hasForeignLatinBrand = (n) => {
+  let rest = n;
+  for (const l of OWN_LABELS_N) rest = rest.replaceAll(l, " ");
+  return latinWords(rest).some((w) => !GENERIC_LATIN.has(w));
+};
 
 function pick(src, names) {
   return Object.fromEntries(names.map((n) => [n, src[n]]));
@@ -199,6 +232,7 @@ const COMPILED = Object.fromEntries(
 );
 
 const OWN_COMPILED = Object.entries(OWN_BRAND_TOKENS).map(([chain, toks]) => [chain, toks.map(norm)]);
+const OWN_LABELS_N = OWN_LABELS.map(norm);
 
 /** Марка товара в группе или null. chain — название сети (для собственных марок). */
 export function brandOf(groupId, productName, chain = "") {
@@ -207,7 +241,9 @@ export function brandOf(groupId, productName, chain = "") {
   const n = norm(productName);
   const c = chain.toUpperCase();
   for (const [ch, toks] of OWN_COMPILED) if (c.includes(ch) && toks.some((t) => n.includes(t))) return OWN;
+  const ownByDefault = OWN_BY_DEFAULT.some((x) => c.includes(x));
+  if (ownByDefault && OWN_LABELS_N.some((l) => n.includes(l))) return OWN;
   for (const [brand, alias] of list) if (n.includes(alias)) return brand;
-  if (OWN_BY_DEFAULT.some((x) => c.includes(x))) return OWN;
+  if (ownByDefault && !hasForeignLatinBrand(n)) return OWN;
   return null;
 }

@@ -4,7 +4,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import { FlatList, Modal, Pressable, Text, View } from "react-native";
-import { shortDate } from "./lib/brochures";
+import { shortDate, todayIso } from "./lib/brochures";
+import { IS_DEMO } from "./lib/data";
+import { dataAgeDays, OLD_PRICES_DAYS } from "./lib/persist";
 import { conditionKey } from "./lib/favorites";
 import { brandLabel, productName, sizeLabel, splitName, type Lang, type T, type TKey } from "./lib/i18n";
 import type { PlanLine } from "./lib/optimize";
@@ -680,6 +682,16 @@ export function DataStatus({
           {t("dsStale")}
         </Text>
       )}
+      {/* файл загрузился, но сами цены старые: ежедневное обновление не прошло или КЗП задерживает данные */}
+      {!IS_DEMO &&
+        !st.stale &&
+        !!index?.date &&
+        dataAgeDays(index.date, todayIso()) >= OLD_PRICES_DAYS && (
+          <Text style={[s.muted, { color: "#8A5A00" }]}>
+            <Icon name="time-outline" size={16} color="#8A5A00" />{" "}
+            {t("dsOld", { date })}
+          </Text>
+        )}
       {!!st.error && (
         <View
           style={[
