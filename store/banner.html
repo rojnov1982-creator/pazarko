@@ -1,0 +1,50 @@
+<!doctype html>
+<!-- Графика для описания в Google Play (1024 × 500). Язык: ?lang=bg | ?lang=en. Рендер — store/make-graphics.mjs -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --green:#1F6F4A; --green-dark:#185C3D; --cream:#F4EFE6; --promo:#D9482B; }
+  html, body { margin:0; width:1024px; height:500px; overflow:hidden; background:var(--green); }
+  body { font-family:"Segoe UI", Arial, sans-serif; color:var(--cream); position:relative; }
+  /* мягкие круги — фон, ничего важного у краёв: Google может обрезать края */
+  .ring { position:absolute; border-radius:50%; }
+  .r1 { width:620px; height:620px; left:-170px; top:-60px; background:var(--green-dark); }
+  .r2 { width:160px; height:160px; right:-40px; bottom:-50px; background:var(--promo); opacity:.9; }
+  .r3 { width:60px; height:60px; right:150px; top:44px; border:6px solid rgba(244,239,230,.25); }
+  /* значок — плитка как на телефоне (у PNG свой зелёный фон, без плитки был бы виден квадрат) */
+  .icon { position:absolute; left:110px; top:90px; width:320px; height:320px; border-radius:72px;
+          box-shadow:0 18px 44px rgba(0,0,0,.28), 0 0 0 3px rgba(244,239,230,.18); }
+  .text { position:absolute; left:470px; top:0; height:500px; width:470px; display:flex; flex-direction:column; justify-content:center; }
+  h1 { font-size:92px; font-weight:700; margin:0; letter-spacing:-1px; line-height:1; }
+  .tag { font-size:34px; font-weight:600; margin:18px 0 0; line-height:1.2; }
+  .chips { display:flex; flex-wrap:wrap; gap:10px; margin-top:28px; }
+  .chip { font-size:21px; font-weight:600; padding:8px 16px; border-radius:999px; background:rgba(244,239,230,.14); border:2px solid rgba(244,239,230,.35); }
+  .chip.promo { background:var(--promo); border-color:var(--promo); }
+</style>
+</head>
+<body>
+  <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+  <img class="icon" src="../app/assets/icon.png" alt="">
+  <div class="text">
+    <h1 id="t"></h1>
+    <p class="tag" id="tag"></p>
+    <div class="chips" id="chips"></div>
+  </div>
+<script>
+  const T = {
+    bg: { t: "Пазарко", tag: "Най-евтината кошница наблизо", chips: [["Брошурите на веригите", 1], ["Цени от КЗП", 0], ["1, 2 или 3 магазина", 0]] },
+    en: { t: "Pazarko", tag: "The cheapest grocery basket near you", chips: [["Chain leaflets", 1], ["Official prices", 0], ["1, 2 or 3 stores", 0]] },
+  };
+  const L = T[new URLSearchParams(location.search).get("lang")] || T.bg;
+  document.getElementById("t").textContent = L.t;
+  document.getElementById("tag").textContent = L.tag;
+  for (const [text, promo] of L.chips) {
+    const s = document.createElement("span");
+    s.className = "chip" + (promo ? " promo" : "");
+    s.textContent = text;
+    document.getElementById("chips").append(s);
+  }
+</script>
+</body>
+</html>

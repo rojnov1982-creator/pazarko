@@ -63,7 +63,7 @@ node ingest.mjs --zip ~/Downloads/2026-10-09.zip
 
 ## Шаг 4. Контакты в политике конфиденциальности
 
-Готово (06.11.2026): «Бизнес Ноутс» ЕООД / Business Notes EOOD, diginetgroup@gmail.com — в `site-static/privacy.html`,
+Готово (16.11.2026): Олег Рожнов / Oleg Rozhnov, rojnov1982@gmail.com (личный аккаунт Google Play) — в `site-static/privacy.html`,
 `site-static/index.html` и `STORE_LISTING.md`. При смене почты замените её во всех трёх файлах.
 
 ### Аналитика (PostHog)
