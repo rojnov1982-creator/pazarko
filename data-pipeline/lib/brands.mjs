@@ -196,7 +196,9 @@ export const OWN_LABELS = [
   "SOL MAR", "DELUXE", "CHEF SELECT", "LORD NELSON", "TASTINO", "SONDEY", "MISTER CHOC", "GELATELLI", "BON GELATI",
   "BELBAKE", "VITA D OR", "PRIMADONNA", "BARESA", "NIXE", "OCEAN SEA", "TRATTORIA ALFREDO", "MCENNEDY", "CULINEA",
   "MARIBEL", "GOLDEN SUN", "PERLENBACHER", "ARGUS", "GRAFENWALDER", "BIOTREND", "VEMONDO", "METZGERFRISCH",
-  "РОДНА СТРЯХА", "ПИЛОС", "МИЛБОНА", "ПИКОК",
+  "CONFISERIE FIRENZE", "CRELANDO", "FORMIL", "HARVEST BASKET", "QUEEN MARGOT",
+  // по колонке own_label в брошюре Lidl 16–22.11.2026
+  "РОДНА СТРЯХА", "ПОРЦИЯ СВЕЖЕСТ", "ПИЛОС", "МИЛБОНА", "ПИКОК",
 ];
 /** Латинские слова, которые не являются маркой: единицы, размеры, вид товара */
 const GENERIC_LATIN = new Set([
