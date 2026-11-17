@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Пазарко",
+    "name": "Евтинко",
     "slug": "pazarko",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -45,7 +45,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Пазарко използва местоположението ви само на телефона, за да покаже най-близките магазини. / Pazarko uses your location only on your phone to show the nearest stores.",
+          "locationWhenInUsePermission": "Евтинко използва местоположението ви само на телефона, за да покаже най-близките магазини. / Evtinko uses your location only on your phone to show the nearest stores.",
           "locationAlwaysAndWhenInUsePermission": false,
           "locationAlwaysPermission": false,
           "isIosBackgroundLocationEnabled": false,

@@ -1,10 +1,10 @@
-# Пазарко: от архива до живых цен — пошагово
+# Евтинко: от архива до живых цен — пошагово
 
 Итог: цены будут сами обновляться **дважды в день** и бесплатно публиковаться на GitHub Pages,
 а приложение будет брать их оттуда. Вам ничего не нужно запускать вручную.
 
 ```
-kolkostruva.bg ──(каждый день)──► GitHub Actions ──► GitHub Pages ──► приложение Пазарко
+kolkostruva.bg ──(каждый день)──► GitHub Actions ──► GitHub Pages ──► приложение Евтинко
   архив КЗП (ZIP)                  ingest.mjs          index.json,       скачивает цены
                                                        city/*.json,      и кэширует
                                                        privacy.html
@@ -68,7 +68,7 @@ node ingest.mjs --zip ~/Downloads/2026-10-09.zip
 
 ### Аналитика (PostHog)
 
-1. Зарегистрируйтесь на https://eu.posthog.com (регион **EU**), создайте проект «Pazarko».
+1. Зарегистрируйтесь на https://eu.posthog.com (регион **EU**), создайте проект «Evtinko».
 2. Project settings → скопируйте **Project API key** (начинается с `phc_`). Это публичный ключ (только запись событий),
    его можно хранить в репозитории.
 3. Впишите его в `app/app.json` → `expo.extra.analytics.key`.
@@ -96,7 +96,7 @@ node ingest.mjs --zip ~/Downloads/2026-10-09.zip
 
 1. Вкладка **Actions** → слева **prices** → справа **Run workflow** → **Run workflow**.
 2. Через 2–4 минуты должна появиться зелёная галочка ✅.
-3. Откройте `https://ВАШ-ЛОГИН.github.io/pazarko/` — увидите страницу Пазарко со строкой
+3. Откройте `https://ВАШ-ЛОГИН.github.io/pazarko/` — увидите страницу Евтинко со строкой
    «Последни цени: 2026-10-…».
 4. Проверьте данные: `https://ВАШ-ЛОГИН.github.io/pazarko/index.json`.
 

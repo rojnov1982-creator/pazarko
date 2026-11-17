@@ -11,7 +11,7 @@
 
 | Поле | Значение |
 |---|---|
-| Название | **Пазарко** (BG) / **Pazarko** (EN) |
+| Название | **Евтинко** (BG) / **Evtinko** (EN) |
 | Категория | App Store: Покупки (Shopping), доп. — Еда и напитки · Google Play: Покупки (Shopping) |
 | Цена | Бесплатно |
 | Политика конфиденциальности | `https://rojnov1982-creator.github.io/pazarko/privacy.html` |
@@ -47,9 +47,9 @@
 
 **Пълно описание** (App Store и Google Play; ~1430 / 4000)
 ```
-Пазарко ви показва къде да пазарувате, за да платите най-малко.
+Евтинко ви показва къде да пазарувате, за да платите най-малко.
 
-Седмичните брошури на Kaufland, Lidl, Billa, Фантастико, T Market и Metro и ежедневните цени от КЗП — на едно място. Съберете кошница и Пазарко ще намери в кои магазини какво да купите.
+Седмичните брошури на Kaufland, Lidl, Billa, Фантастико, T Market и Metro и ежедневните цени от КЗП — на едно място. Съберете кошница и Евтинко ще намери в кои магазини какво да купите.
 
 ОФЕРТИ ЗА ВАС
 • Актуалните предложения от брошурите — по раздели, вериги и дати
@@ -58,12 +58,12 @@
 
 ОПТИМАЛНАТА КОШНИЦА
 • Какво да купите в кой магазин, за да платите най-малко
-• Изберете 1, 2 или 3 магазина — Пазарко намира най-добрата комбинация
+• Изберете 1, 2 или 3 магазина — Евтинко намира най-добрата комбинация
 • Колко спестявате спрямо пазаруване само в един магазин
 • Списък за пазаруване по магазини, който можете да споделите
 
 ЛЮБИМИ ПРОДУКТИ
-Напишете какво купувате редовно — например „Луканка Орехите“ — и Пазарко ще ви покаже, когато е в брошура.
+Напишете какво купувате редовно — например „Луканка Орехите“ — и Евтинко ще ви покаже, когато е в брошура.
 
 ВАШИТЕ МАГАЗИНИ
 Целия град, „Моите магазини“ или магазините близо до вас. Изключете веригите, в които не пазарувате. Оферти „с карта“ — по ваш избор.
@@ -74,12 +74,12 @@
 БЕЗ РЕГИСТРАЦИЯ И РЕКЛАМИ
 Кошницата ви се пази само на телефона. Анонимна статистика се изпраща само ако се съгласите.
 
-Цените идват от отворените данни на Комисията за защита на потребителите (kolkostruva.bg) и от публичните брошури на веригите. Пазарко не е свързан с КЗП или с търговските вериги. Цената в конкретен магазин може да се различава от показаната.
+Цените идват от отворените данни на Комисията за защита на потребителите (kolkostruva.bg) и от публичните брошури на веригите. Евтинко не е свързан с КЗП или с търговските вериги. Цената в конкретен магазин може да се различава от показаната.
 ```
 
 **Какво ново (първа версия)**
 ```
-Първа версия на Пазарко: брошурите на веригите, оптимална кошница, любими продукти, български и английски език.
+Първа версия на Евтинко: брошурите на веригите, оптимална кошница, любими продукти, български и английски език.
 ```
 
 ---
@@ -108,9 +108,9 @@ Supermarket leaflets and prices in one place. The cheapest basket near you.
 
 **Full description** (~1330 / 4000)
 ```
-Pazarko shows you where to shop so you pay the least.
+Evtinko shows you where to shop so you pay the least.
 
-The weekly leaflets of Kaufland, Lidl, Billa, Fantastico, T Market and Metro, plus daily prices from Bulgaria's consumer authority — all in one place. Build a basket and Pazarko works out what to buy in which store.
+The weekly leaflets of Kaufland, Lidl, Billa, Fantastico, T Market and Metro, plus daily prices from Bulgaria's consumer authority — all in one place. Build a basket and Evtinko works out what to buy in which store.
 
 OFFERS FOR YOU
 • Current leaflet offers by section, chain and date
@@ -119,12 +119,12 @@ OFFERS FOR YOU
 
 THE OPTIMAL BASKET
 • What to buy in which store to pay the least
-• Pick 1, 2 or 3 stores — Pazarko finds the best combination
+• Pick 1, 2 or 3 stores — Evtinko finds the best combination
 • How much you save compared with shopping in a single store
 • A shopping list by store that you can share
 
 FAVOURITE PRODUCTS
-Type what you buy regularly and Pazarko shows you when it is on offer in a leaflet.
+Type what you buy regularly and Evtinko shows you when it is on offer in a leaflet.
 
 YOUR STORES
 The whole city, "My stores" or the stores near you. Turn off the chains you don't use. Loyalty-card offers — your choice.
@@ -135,12 +135,12 @@ Larger text and fewer buttons.
 NO SIGN-UP, NO ADS
 Your basket stays on your phone. Anonymous statistics are sent only if you agree.
 
-Prices come from the open data of Bulgaria's Consumer Protection Commission (kolkostruva.bg) and the chains' public leaflets. Pazarko is not affiliated with the Commission or any retail chain. Prices in a specific store may differ.
+Prices come from the open data of Bulgaria's Consumer Protection Commission (kolkostruva.bg) and the chains' public leaflets. Evtinko is not affiliated with the Commission or any retail chain. Prices in a specific store may differ.
 ```
 
 **What's new (first version)**
 ```
-First release of Pazarko: chain leaflets, the optimal basket, favourite products, Bulgarian and English.
+First release of Evtinko: chain leaflets, the optimal basket, favourite products, Bulgarian and English.
 ```
 
 ---

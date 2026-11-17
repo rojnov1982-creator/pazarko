@@ -33,8 +33,8 @@
   </div>
 <script>
   const T = {
-    bg: { t: "Пазарко", tag: "Най-евтината кошница наблизо", chips: [["Брошурите на веригите", 1], ["Цени от КЗП", 0], ["1, 2 или 3 магазина", 0]] },
-    en: { t: "Pazarko", tag: "The cheapest grocery basket near you", chips: [["Chain leaflets", 1], ["Official prices", 0], ["1, 2 or 3 stores", 0]] },
+    bg: { t: "Евтинко", tag: "Най-евтината кошница наблизо", chips: [["Брошурите на веригите", 1], ["Цени от КЗП", 0], ["1, 2 или 3 магазина", 0]] },
+    en: { t: "Evtinko", tag: "The cheapest grocery basket near you", chips: [["Chain leaflets", 1], ["Official prices", 0], ["1, 2 or 3 stores", 0]] },
   };
   const L = T[new URLSearchParams(location.search).get("lang")] || T.bg;
   document.getElementById("t").textContent = L.t;

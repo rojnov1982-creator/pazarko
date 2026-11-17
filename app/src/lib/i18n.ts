@@ -11,7 +11,7 @@ export const LANGS: { code: Lang; label: string }[] = [
 ];
 
 const bg = {
-  appName: "Пазарко",
+  appName: "Евтинко",
   // --- навигация и заголовок ---
   tabPlan: "План",
   basketTitle: "Моята кошница",
@@ -188,7 +188,7 @@ const bg = {
   chainsInCity: "{n} вериги в града",
   buildBasket: "Съберете кошница",
   buildBasketHint:
-    "Добавете продукти — Пазарко ще намери в кои магазини какво е най-евтино и ще сравни с пазаруване само в един магазин.",
+    "Добавете продукти — Евтинко ще намери в кои магазини какво е най-евтино и ще сравни с пазаруване само в един магазин.",
   pickProducts: "Изберете продукти",
   readyBaskets: "Готови кошници",
   nItems: "{n} продукта",
@@ -200,7 +200,7 @@ const bg = {
   easyMode: "Лесен режим",
   easyModeSub:
     "Едри букви и само най-важното: продукти, количество и къде е най-евтино.",
-  easyAskTitle: "Как да изглежда Пазарко?",
+  easyAskTitle: "Как да изглежда Евтинко?",
   easyAskEasy: "Лесно — едри букви",
   easyAskEasySub: "Само най-важното",
   easyAskFull: "Пълно — всички функции",
@@ -219,7 +219,7 @@ const bg = {
   brandShort: "Марка",
   how1: "Изберете какво купувате — хляб, мляко, сирене…",
   how2: "Натиснете зеления бутон «Къде е най-евтино».",
-  how3: "Пазарко ще ви каже в кой магазин какво да купите и колко спестявате.",
+  how3: "Евтинко ще ви каже в кой магазин какво да купите и колко спестявате.",
   from: "от {price}",
   perKg: "/кг",
   chainsShort: "{n} вер.",
@@ -296,7 +296,7 @@ const bg = {
   analytics: "Анонимна статистика",
   analyticsSub:
     "Помага ни да разберем кои продукти, вериги и функции се използват. Без име, имейл и местоположение.",
-  analyticsAskTitle: "Помогнете ни да подобрим Пазарко",
+  analyticsAskTitle: "Помогнете ни да подобрим Евтинко",
   analyticsAskText:
     "Може ли да събираме анонимна статистика за използването (кои продукти и вериги се търсят)? Без име, имейл и местоположение. Можете да промените избора си в Настройки.",
   analyticsYes: "Да, съгласен съм",
@@ -365,7 +365,7 @@ const bg = {
   unpricedNote: "Купи ги в магазина, където пазаруваш.",
   otherStore: "Други",
   share: "Сподели",
-  shareTitle: "Списък за пазаруване — Пазарко",
+  shareTitle: "Списък за пазаруване — Евтинко",
   shareTotal: "Общо ≈ {amount}",
   mapOpen: "Карта",
   cardReminder: "💳 Вземи картата на {chain} — {n} от акциите са с карта",
@@ -394,7 +394,7 @@ const bg = {
   takeIt: "Вземи тази",
   showDeals: "Подсказвай супер оферти",
   showDealsSub: "Дори ако марката не е от любимите ви",
-  premium: "Пазарко Premium",
+  premium: "Евтинко Premium",
   premiumSub: "Още повече спестявания и удобство",
   premiumSoon: "Скоро",
   premiumFree:
@@ -442,7 +442,7 @@ const bg = {
 type Dict = typeof bg;
 
 const en: Dict = {
-  appName: "Pazarko",
+  appName: "Evtinko",
   tabPlan: "Plan",
   basketTitle: "My basket",
   pricesFromShort: "Prices from {date}",
@@ -614,7 +614,7 @@ const en: Dict = {
   chainsInCity: "{n} chains in the city",
   buildBasket: "Build your basket",
   buildBasketHint:
-    "Add products — Pazarko will find which stores sell what for the least and compare it with doing all your shopping in one store.",
+    "Add products — Evtinko will find which stores sell what for the least and compare it with doing all your shopping in one store.",
   pickProducts: "Pick products",
   readyBaskets: "Ready-made baskets",
   nItems: "{n} items",
@@ -626,7 +626,7 @@ const en: Dict = {
   easyMode: "Easy mode",
   easyModeSub:
     "Large text and only the essentials: products, quantity and where it is cheapest.",
-  easyAskTitle: "How should Pazarko look?",
+  easyAskTitle: "How should Evtinko look?",
   easyAskEasy: "Easy — large text",
   easyAskEasySub: "Only the essentials",
   easyAskFull: "Full — all features",
@@ -645,7 +645,7 @@ const en: Dict = {
   brandShort: "Brand",
   how1: "Pick what you buy — bread, milk, cheese…",
   how2: "Tap the green button «Where is it cheapest».",
-  how3: "Pazarko tells you what to buy in which store and how much you save.",
+  how3: "Evtinko tells you what to buy in which store and how much you save.",
   from: "from {price}",
   perKg: "/kg",
   chainsShort: "{n} chains",
@@ -719,7 +719,7 @@ const en: Dict = {
   analytics: "Anonymous statistics",
   analyticsSub:
     "Helps us see which products, chains and features are used. No name, email or location.",
-  analyticsAskTitle: "Help us improve Pazarko",
+  analyticsAskTitle: "Help us improve Evtinko",
   analyticsAskText:
     "May we collect anonymous usage statistics (which products and chains people look for)? No name, email or location. You can change this anytime in Settings.",
   analyticsYes: "Yes, I agree",
@@ -788,7 +788,7 @@ const en: Dict = {
   unpricedNote: "Buy them wherever you shop.",
   otherStore: "Other",
   share: "Share",
-  shareTitle: "Shopping list — Pazarko",
+  shareTitle: "Shopping list — Evtinko",
   shareTotal: "Total ≈ {amount}",
   mapOpen: "Map",
   cardReminder: "💳 Bring your {chain} card — {n} of the deals need it",
@@ -817,7 +817,7 @@ const en: Dict = {
   takeIt: "Take this one",
   showDeals: "Suggest super deals",
   showDealsSub: "Even if the brand isn't one of your favourites",
-  premium: "Pazarko Premium",
+  premium: "Evtinko Premium",
   premiumSub: "Even more savings and convenience",
   premiumSoon: "Coming soon",
   premiumFree:
