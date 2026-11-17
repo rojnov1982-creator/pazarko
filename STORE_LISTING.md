@@ -189,6 +189,9 @@ First release of Pazarko: chain leaflets, the optimal basket, favourite products
 
 ## Скриншоты
 
+Готовые для Google Play (BG, 1080 × 1920) — `store/screenshots/01…06*.png`, порядок загрузки — по номерам.
+Переснять: запустить веб-версию (`cd app && npx.cmd expo start --web --port 8099`), затем `node store/make-screenshots.mjs store/screenshots`.
+
 - **Google Play:** телефон, от 2 до 8 штук (лучше 4+), стороны от 320 до 3840 px, соотношение не больше 2:1; для показа в рекомендациях — не меньше 1080 px. Снимать на реальных данных с установленной сборки.
 - **App Store:** iPhone 6,9″ (1320×2868) — обязательно; 6,5″ (1284×2778) — желательно. 3–10 штук на каждый язык.
 
