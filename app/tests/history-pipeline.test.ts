@@ -47,3 +47,40 @@ test("история: два месяца, прошедшая и будущая 
   assert.equal(coffee.m, "tiered");
   assert.equal(name(oct, oct.items.indexOf(coffee)), "Lidl");
 });
+
+test("набор («1+1», «2+1», каса): цена и старая цена — за весь набор, цена за кг/л — от цены набора", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bro-in-"));
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), "bro-out-"));
+  const head = `${HEAD},price_per_unit_eur`;
+  const line = (o: Record<string, string>) => `${row(o)},${o.price_per_unit_eur ?? ""}`;
+  const week = { chain: "Kaufland", valid_from: "2026-11-23", valid_to: "2026-11-29", cat: "2" };
+  fs.writeFileSync(
+    path.join(dir, "test.csv"),
+    [
+      head,
+      // в таблице: price_eur — за набор (2 x 400 г), effective_eur — за 1 брой, price_per_unit_eur = price_eur / total_qty
+      line({ ...week, product: "MILKI DREAM Кашкавал 2 x 400 г", kzp_group: "11", price_eur: "5.52", effective_eur: "2.76", regular_eur: "11.04", total_qty: "0.8", unit: "kg", price_per_unit_eur: "6.9", mechanic: "multibuy+card_app" }),
+      line({ ...week, product: "ШУМЕНСКО Бира 20 x 0,5 л ЦЕНА ЗА 20 БР.", kzp_group: "74", cat: "12", price_eur: "10", effective_eur: "0.5", regular_eur: "17", total_qty: "10", unit: "l", price_per_unit_eur: "1", mechanic: "price_cut+card_app" }),
+      // купон на 1 брой: цена за единицу посчитана от effective_eur — берём effective_eur, как раньше
+      line({ ...week, product: "Кисело мляко 400 г купон", kzp_group: "7", price_eur: "0.89", effective_eur: "0.69", regular_eur: "0.89", total_qty: "0.4", unit: "kg", price_per_unit_eur: "1.725", mechanic: "price_cut+card_app" }),
+    ].join("\n"),
+  );
+  const script = path.resolve(__dirname, "../../data-pipeline/brochures.mjs");
+  execFileSync("node", [script, "--in", dir, "--out", out, "--today", "2026-11-24"], { stdio: "pipe" });
+  const bro = JSON.parse(fs.readFileSync(path.join(out, "brochures.json"), "utf8"));
+  const offer = (start: string) => bro.offers.find((o: { n: string }) => o.n.startsWith(start));
+  const cheese = offer("MILKI");
+  assert.equal(cheese.p, 5.52);
+  assert.equal(cheese.r, 11.04);
+  assert.equal(cheese.u, "6.9/kg");
+  const beer = offer("ШУМЕНСКО");
+  assert.equal(beer.p, 10);
+  assert.equal(beer.u, "1/l");
+  assert.equal(beer.rp, 2); // 2 л — эталонная фасовка группы пива: 1 €/л, а не 0,10 €
+  const yogurt = offer("Кисело");
+  assert.equal(yogurt.p, 0.69);
+  const nov = JSON.parse(fs.readFileSync(path.join(out, "history/2026-11.json"), "utf8"));
+  const hist = nov.items.find((h: { n: string }) => h.n.startsWith("MILKI"));
+  assert.equal(hist.p, 5.52);
+  assert.equal(hist.u, "6.9/kg");
+});

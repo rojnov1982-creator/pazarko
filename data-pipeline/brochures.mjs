@@ -56,6 +56,23 @@ const num = (s) => {
 };
 const r2 = (v) => (v == null ? undefined : Math.round(v * 100) / 100);
 
+/**
+ * Цена предложения — за всё количество строки (total_qty), как и regular_eur.
+ * В таблицах v1 у наборов («1+1», «2+1», каса 20 бр.) price_eur — цена набора, effective_eur — цена одного броя,
+ * а price_per_unit_eur = price_eur / total_qty. Тогда берём price_eur: иначе выходило «2,76 € вместо 11,04 €»
+ * и пиво по 0,05 €/л. В остальных строках (купон, «от суммы») — effective_eur, как раньше.
+ */
+function priceOf(r) {
+  const p = num(r.price_eur);
+  const e = num(r.effective_eur);
+  if (p == null || e == null || Math.abs(p - e) < 0.005) return e ?? p;
+  const q = num(r.total_qty);
+  const u = num(r.price_per_unit_eur);
+  return q && u && Math.abs(p / q - u) <= 0.015 + 0.012 * u ? p : e;
+}
+/** Прежняя цена строки — только для ключей: идентификаторы предложений (закрепления в корзине) не меняются */
+const keyPrice = (r) => num(r.effective_eur) ?? num(r.price_eur);
+
 const dir = path.resolve(args.in && args.in !== true ? args.in : path.join(here, "brochures"));
 const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith(".csv")).sort() : [];
 
@@ -80,11 +97,11 @@ function remember(r, chain, from, to) {
   const name = cleanName(r.product);
   if (!name) return;
   const brand = (r.brand ?? "").trim() || undefined;
-  const price = num(r.effective_eur) ?? num(r.price_eur);
+  const price = priceOf(r);
   const regular = num(r.regular_eur);
   const mech = (r.mechanic ?? "").trim();
   const conditional = /multibuy|tiered|code_threshold|promo_pack|pct_no_price/.test(mech);
-  const key = [chain, name.toLowerCase(), (brand ?? "").toLowerCase(), from, to, price].join("|");
+  const key = [chain, name.toLowerCase(), (brand ?? "").toLowerCase(), from, to, keyPrice(r)].join("|");
   const month = from.slice(0, 7);
   const m = historyByMonth.get(month) ?? new Map();
   historyByMonth.set(month, m);
@@ -136,7 +153,7 @@ for (const f of files) {
       continue;
     }
     const mech = (r.mechanic ?? "").trim();
-    const price = num(r.effective_eur) ?? num(r.price_eur);
+    const price = priceOf(r);
     const regular = num(r.regular_eur);
     const pctPrinted = num(r.discount_printed);
     const pctCalc = num(r.discount_calc_pct);
@@ -154,7 +171,7 @@ for (const f of files) {
       .replace(/\s+/g, " ")
       .trim();
     if (!name) continue;
-    const key = [chain, from, to, name, price].join("|");
+    const key = [chain, from, to, name, keyPrice(r)].join("|");
     if (seen.has(key)) {
       stats.dup++;
       continue;
